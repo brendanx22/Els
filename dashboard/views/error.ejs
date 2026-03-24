@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Trading Terminal Error</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        font-family: Georgia, "Times New Roman", serif;
+        background:
+          radial-gradient(circle at top left, rgba(240, 201, 135, 0.65), transparent 30%),
+          linear-gradient(135deg, #f5eddc 0%, #e2efe7 100%);
+        color: #16332e;
+      }
+
+      .card {
+        width: min(620px, calc(100vw - 2rem));
+        padding: 2rem;
+        border-radius: 28px;
+        background: rgba(255, 250, 241, 0.92);
+        box-shadow: 0 24px 60px rgba(22, 51, 46, 0.12);
+      }
+
+      h1 {
+        margin-top: 0;
+      }
+
+      p {
+        line-height: 1.7;
+      }
+
+      a {
+        display: inline-block;
+        margin-top: 1rem;
+        color: #0f766e;
+      }
+    </style>
+  </head>
+  <body>
+    <section class="card">
+      <h1>Trading terminal error</h1>
+      <p><%= error %></p>
+      <a href="/">Return to dashboard</a>
+    </section>
+  </body>
+</html>

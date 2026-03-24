@@ -1,0 +1,75 @@
+{
+  "exitCode": 4294967295,
+  "selection": {
+    "symbol": "EURUSD",
+    "timeframe": "1h"
+  },
+  "watch": {
+    "active": true,
+    "ownerId": "session-11476-1773880028471-vhggth",
+    "ownerSource": "terminal",
+    "nextRefreshAt": 1773880192943,
+    "nextQuoteAt": 1773880185450,
+    "quoteMs": 1000,
+    "refreshMs": 60000,
+    "symbol": "EURUSD",
+    "timeframe": "1h"
+  },
+  "latestDisplaySymbol": "EURUSD",
+  "latestProviderSymbol": "EURUSD=X",
+  "historyTop": [
+    {
+      "at": 1773879813215,
+      "command": "analyze EURUSD 1h",
+      "source": "terminal"
+    },
+    {
+      "at": 1773879539744,
+      "command": "analyze GBPUSD 1h",
+      "source": "terminal"
+    },
+    {
+      "at": 1773879028725,
+      "command": "analyze XAUUSD 1h",
+      "source": "terminal"
+    },
+    {
+      "at": 1773878948884,
+      "command": "analyze XAUUSD 1h",
+      "source": "terminal"
+    }
+  ],
+  "stdoutTail": [
+    "Live | +0.00040 / 0.03% | Bearish structure",
+    "trade [tick 1s | scan 27s]> trade [tick 0s | scan 26s]> trade [tick 1s | scan 25s]> [tick 01:29:27] EURUSD 1 Hour | 1.14730 USD",
+    "Live | +0.00040 / 0.03% | Bearish structure",
+    "trade [tick 1s | scan 25s]> trade [tick 1s | scan 24s]> [tick 01:29:29] EURUSD 1 Hour | 1.14730 USD",
+    "Live | +0.00040 / 0.03% | Bearish structure",
+    "trade [tick 1s | scan 24s]> trade [tick 1s | scan 23s]> [tick 01:29:30] EURUSD 1 Hour | 1.14730 USD",
+    "Live | +0.00040 / 0.03% | Bearish structure",
+    "trade [tick 1s | scan 23s]> trade [tick 0s | scan 22s]> trade [tick 1s | scan 21s]> [tick 01:29:31] EURUSD 1 Hour | 1.14730 USD",
+    "Live | +0.00040 / 0.03% | Bearish structure",
+    "trade [tick 1s | scan 21s]> trade [tick 1s | scan 20s]> [tick 01:29:33] EURUSD 1 Hour | 1.14730 USD",
+    "Live | +0.00040 / 0.03% | Bearish structure",
+    "trade [tick 1s | scan 20s]> trade [tick 1s | scan 19s]> [tick 01:29:34] EURUSD 1 Hour | 1.14730 USD",
+    "Live | +0.00040 / 0.03% | Bearish structure",
+    "trade [tick 1s | scan 19s]> trade [tick 1s | scan 18s]> [tick 01:29:35] EURUSD 1 Hour | 1.14730 USD",
+    "Live | +0.00040 / 0.03% | Bearish structure",
+    "trade [tick 1s | scan 18s]> trade [tick 1s | scan 17s]> [tick 01:29:36] EURUSD 1 Hour | 1.14730 USD",
+    "Live | +0.00040 / 0.03% | Bearish structure",
+    "trade [tick 1s | scan 17s]> trade [tick 0s | scan 16s]> trade [tick 1s | scan 15s]> [tick 01:29:38] EURUSD 1 Hour | 1.14730 USD",
+    "Live | +0.00040 / 0.03% | Bearish structure",
+    "trade [tick 1s | scan 15s]> trade [tick 1s | scan 14s]> [tick 01:29:39] EURUSD 1 Hour | 1.14730 USD",
+    "Live | +0.00040 / 0.03% | Bearish structure",
+    "trade [tick 1s | scan 14s]> trade [tick 1s | scan 13s]> [tick 01:29:40] EURUSD 1 Hour | 1.14730 USD",
+    "Live | +0.00040 / 0.03% | Bearish structure",
+    "trade [tick 1s | scan 13s]> trade [tick 0s | scan 12s]> trade [tick 1s | scan 11s]> [tick 01:29:41] EURUSD 1 Hour | 1.14730 USD",
+    "Live | +0.00040 / 0.03% | Bearish structure",
+    "trade [tick 1s | scan 11s]> trade [tick 1s | scan 9s]> [tick 01:29:43] EURUSD 1 Hour | 1.14730 USD",
+    "Live | +0.00040 / 0.03% | Bearish structure",
+    "trade [tick 1s | scan 9s]> trade [tick 1s | scan 8s]> [tick 01:29:44] EURUSD 1 Hour | 1.14730 USD",
+    "Live | +0.00040 / 0.03% | Bearish structure",
+    "trade [tick 1s | scan 8s]> "
+  ],
+  "stderrTail": []
+}

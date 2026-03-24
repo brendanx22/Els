@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ELS Terminal</title>
+    <link rel="stylesheet" href="/trading-terminal.css" />
+  </head>
+  <body>
+    <script>
+      window.TRADING_APP_CONFIG = <%= JSON.stringify(appConfig) %>;
+    </script>
+
+    <main class="tv-shell" id="snapshot-area">
+      <header class="tv-topbar">
+        <div class="brand-lockup">
+          <div class="brand-mark">E</div>
+          <div>
+            <div class="brand-name">ELS Terminal</div>
+            <div class="brand-sub">Market mirror</div>
+          </div>
+        </div>
+
+        <div class="market-strip">
+          <article class="market-pill">
+            <span>Symbol</span>
+            <strong id="session-symbol">--</strong>
+            <small id="session-timeframe">--</small>
+          </article>
+          <article class="market-pill">
+            <span>Price</span>
+            <strong id="headline-price">--</strong>
+            <small id="headline-change">--</small>
+          </article>
+          <article class="market-pill" data-tone="idle" id="status-card">
+            <span>Engine</span>
+            <strong id="status-label">Idle</strong>
+            <small id="status-detail">Waiting for terminal input.</small>
+          </article>
+          <article class="market-pill">
+            <span>Last command</span>
+            <strong id="last-command">--</strong>
+            <small id="last-command-time">--</small>
+          </article>
+        </div>
+
+      </header>
+
+      <section class="tv-workspace">
+        <aside class="tool-rail">
+          <div class="rail-stack">
+            <span class="rail-dot active">+</span>
+            <span class="rail-dot">Fx</span>
+            <span class="rail-dot">Fib</span>
+            <span class="rail-dot">SD</span>
+            <span class="rail-dot">FVG</span>
+            <span class="rail-dot">RSI</span>
+          </div>
+
+          <div class="rail-card">
+            <div class="rail-title">CLI</div>
+            <p>Terminal drives the active chart.</p>
+            <div class="command-pills">
+              <% appConfig.commandExamples.forEach((command) => { %>
+                <span class="command-pill"><%= command %></span>
+              <% }); %>
+            </div>
+          </div>
+        </aside>
+
+        <section class="chart-stage chart-stage--tv">
+          <div class="chart-toolbar">
+            <div>
+              <div class="toolbar-label">Chart</div>
+              <h1 id="headline-symbol">No market selected</h1>
+              <p id="headline-meta">Use the terminal to analyze or watch a symbol.</p>
+            </div>
+
+            <div class="toolbar-meta">
+              <div class="chart-view-toggle" id="chart-view-toggle" role="tablist" aria-label="Chart mode">
+                <button id="chart-mode-tradingview" class="chart-view-button" type="button">TradingView</button>
+                <button id="chart-mode-local" class="chart-view-button" type="button">Annotated</button>
+              </div>
+              <span class="toolbar-chip" id="provider-label">--</span>
+              <span class="toolbar-chip" id="updated-stat">--</span>
+              <span class="toolbar-chip" id="watch-state">Paused</span>
+              <span class="toolbar-chip" id="next-refresh">Enable live watch in terminal.</span>
+            </div>
+          </div>
+
+          <div class="layer-strip" id="layer-tags">
+            <span class="layer-tag">EMA</span>
+            <span class="layer-tag">Fib</span>
+            <span class="layer-tag">Supply / Demand</span>
+            <span class="layer-tag">FVG</span>
+            <span class="layer-tag">RSI confirmation</span>
+          </div>
+
+          <div class="chart-frame">
+            <div id="chart-container" class="chart-container"></div>
+            <div id="tv-chart-container" class="tv-chart-container" hidden>
+              <div id="tv-chart-widget" class="tv-chart-widget"></div>
+            </div>
+            <div id="chart-annotation-layer" class="chart-annotation-layer"></div>
+            <div id="chart-legend" class="chart-legend"></div>
+          </div>
+
+          <div class="chart-stats">
+            <article class="chart-stat">
+              <span>Bias</span>
+              <strong id="bias-stat">--</strong>
+            </article>
+            <article class="chart-stat">
+              <span>Confidence</span>
+              <strong id="confidence-stat">--</strong>
+            </article>
+            <article class="chart-stat">
+              <span>Momentum</span>
+              <strong id="momentum-stat">--</strong>
+            </article>
+            <article class="chart-stat">
+              <span>Pattern</span>
+              <strong id="pattern-stat">--</strong>
+            </article>
+            <article class="chart-stat">
+              <span>Breakout</span>
+              <strong id="breakout-value">--</strong>
+            </article>
+            <article class="chart-stat">
+              <span>Range location</span>
+              <strong id="range-location-value">--</strong>
+            </article>
+          </div>
+        </section>
+
+        <aside class="smart-sidebar">
+          <section class="sidebar-panel thesis-panel">
+            <div class="panel-label">Strategy thesis</div>
+            <div class="confluence-head">
+              <div>
+                <strong id="confluence-value">--</strong>
+                <span>Confluence</span>
+              </div>
+              <div class="confluence-bar">
+                <div id="confluence-fill" class="confluence-fill"></div>
+              </div>
+            </div>
+            <p id="thesis-value" class="thesis-copy">Waiting for strategy output from the terminal.</p>
+            <div class="signal-grid compact ai-meta-grid">
+              <div class="signal-cell">
+                <span>AI provider</span>
+                <strong id="ai-provider-value">--</strong>
+              </div>
+              <div class="signal-cell">
+                <span>AI verdict</span>
+                <strong id="ai-verdict-value">--</strong>
+              </div>
+              <div class="signal-cell">
+                <span>Entry status</span>
+                <strong id="ai-status-value">--</strong>
+              </div>
+              <div class="signal-cell">
+                <span>AI confidence</span>
+                <strong id="ai-confidence-label">--</strong>
+              </div>
+            </div>
+            <div class="signal-grid">
+              <div class="signal-cell">
+                <span>Structure</span>
+                <strong id="structure-event-value">--</strong>
+              </div>
+              <div class="signal-cell">
+                <span>Location</span>
+                <strong id="location-value">--</strong>
+              </div>
+              <div class="signal-cell">
+                <span>Fib zone</span>
+                <strong id="fib-zone-value">--</strong>
+              </div>
+              <div class="signal-cell">
+                <span>RSI rule</span>
+                <strong id="rsi-rule-value">--</strong>
+              </div>
+              <div class="signal-cell">
+                <span>Regime</span>
+                <strong id="regime-value">--</strong>
+              </div>
+              <div class="signal-cell">
+                <span>Volatility</span>
+                <strong id="volatility-value">--</strong>
+              </div>
+            </div>
+          </section>
+
+          <section class="sidebar-panel">
+            <div class="panel-label">Trade plans</div>
+            <div id="setup-stack" class="setup-stack">
+              <article class="setup-card">
+                <span class="setup-label">Awaiting market</span>
+                <strong>No setup yet</strong>
+                <p>Run terminal analysis to build Fib, supply and demand, FVG, and RSI-driven setups.</p>
+              </article>
+            </div>
+          </section>
+
+          <section class="sidebar-panel">
+            <div class="panel-label">News Analysis</div>
+            <div class="signal-grid compact">
+              <div class="signal-cell">
+                <span>Sentiment</span>
+                <strong id="news-sentiment-value">--</strong>
+              </div>
+              <div class="signal-cell">
+                <span>Impact</span>
+                <strong id="news-impact-value">--</strong>
+              </div>
+              <div class="signal-cell">
+                <span>Articles</span>
+                <strong id="news-articles-value">--</strong>
+              </div>
+              <div class="signal-cell">
+                <span>Key Events</span>
+                <strong id="news-events-value">--</strong>
+              </div>
+            </div>
+            <div class="panel-label secondary">News Summary</div>
+            <p id="news-summary-value" class="thesis-copy">No news data available.</p>
+          </section>
+
+          <section class="sidebar-panel">
+            <div class="panel-label">Historical Movements</div>
+            <div class="signal-grid compact">
+              <div class="signal-cell">
+                <span>Price Change</span>
+                <strong id="movement-change-value">--</strong>
+              </div>
+              <div class="signal-cell">
+                <span>Volatility</span>
+                <strong id="movement-volatility-value">--</strong>
+              </div>
+              <div class="signal-cell">
+                <span>Momentum</span>
+                <strong id="movement-momentum-value">--</strong>
+              </div>
+              <div class="signal-cell">
+                <span>Trend</span>
+                <strong id="movement-trend-value">--</strong>
+              </div>
+            </div>
+            <div class="signal-grid">
+              <div class="signal-cell">
+                <span>Patterns</span>
+                <strong id="movement-patterns-value">--</strong>
+              </div>
+              <div class="signal-cell">
+                <span>Support</span>
+                <strong id="movement-support-value">--</strong>
+              </div>
+              <div class="signal-cell">
+                <span>Resistance</span>
+                <strong id="movement-resistance-value">--</strong>
+              </div>
+              <div class="signal-cell">
+                <span>Volume</span>
+                <strong id="movement-volume-value">--</strong>
+              </div>
+            </div>
+          </section>
+
+          <section class="sidebar-panel">
+            <div class="panel-label">Score stack</div>
+            <div class="signal-grid compact">
+              <div class="signal-cell">
+                <span>Trend</span>
+                <strong id="trend-score-value">--</strong>
+              </div>
+              <div class="signal-cell">
+                <span>Momentum</span>
+                <strong id="momentum-score-value">--</strong>
+              </div>
+              <div class="signal-cell">
+                <span>Structure</span>
+                <strong id="structure-score-value">--</strong>
+              </div>
+              <div class="signal-cell">
+                <span>Timing</span>
+                <strong id="timing-score-value">--</strong>
+              </div>
+              <div class="signal-cell">
+                <span>Volatility</span>
+                <strong id="volatility-score-value">--</strong>
+              </div>
+              <div class="signal-cell">
+                <span>ADX</span>
+                <strong id="adx-value">--</strong>
+              </div>
+            </div>
+          </section>
+        </aside>
+      </section>
+
+      <section class="tv-bottom">
+        <article class="bottom-panel">
+          <div class="panel-label">AI execution brief</div>
+          <ul id="risk-list" class="text-list">
+            <li>Waiting for AI risk review.</li>
+          </ul>
+          <div class="panel-label secondary">Next actions</div>
+          <ul id="next-actions-list" class="text-list">
+            <li>Run terminal analysis to generate an AI action plan.</li>
+          </ul>
+          <div class="panel-label secondary">Invalidations</div>
+          <ul id="invalidation-list" class="text-list">
+            <li>No invalidation rules yet.</li>
+          </ul>
+        </article>
+
+        <article class="bottom-panel">
+          <div class="panel-label">Execution levels</div>
+          <div class="levels-grid">
+            <div class="level-cell">
+              <span>EMA 20</span>
+              <strong id="ema20-value">--</strong>
+            </div>
+            <div class="level-cell">
+              <span>EMA 50</span>
+              <strong id="ema50-value">--</strong>
+            </div>
+            <div class="level-cell">
+              <span>EMA 200</span>
+              <strong id="ema200-value">--</strong>
+            </div>
+            <div class="level-cell">
+              <span>RSI 14</span>
+              <strong id="rsi-value">--</strong>
+            </div>
+            <div class="level-cell">
+              <span>MACD Hist</span>
+              <strong id="macd-value">--</strong>
+            </div>
+            <div class="level-cell">
+              <span>Support</span>
+              <strong id="support-value">--</strong>
+            </div>
+            <div class="level-cell">
+              <span>Resistance</span>
+              <strong id="resistance-value">--</strong>
+            </div>
+            <div class="level-cell">
+              <span>Demand zone</span>
+              <strong id="support-zone-value">--</strong>
+            </div>
+            <div class="level-cell">
+              <span>Supply zone</span>
+              <strong id="resistance-zone-value">--</strong>
+            </div>
+            <div class="level-cell">
+              <span>Fib entry</span>
+              <strong id="fib-entry-value">--</strong>
+            </div>
+            <div class="level-cell">
+              <span>Fib invalid</span>
+              <strong id="fib-invalid-value">--</strong>
+            </div>
+            <div class="level-cell">
+              <span>Range mid</span>
+              <strong id="range-midpoint-value">--</strong>
+            </div>
+          </div>
+        </article>
+
+        <article class="bottom-panel">
+          <div class="panel-label">Terminal log</div>
+          <ol id="command-log" class="command-log">
+            <li>No terminal commands yet.</li>
+          </ol>
+        </article>
+      </section>
+    </main>
+
+    <script src="/vendor/klinecharts/klinecharts.min.js"></script>
+    <script src="/trading-terminal.js"></script>
+  </body>
+</html>
