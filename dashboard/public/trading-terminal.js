@@ -3596,6 +3596,7 @@
 
       const updatedSnapshot = await response.json();
       if (webTerminalInput) webTerminalInput.value = "";
+      localStorage.setItem("els_last_command", rawCmd);
 
       // On production: directly render the command result and persist selection
       if (!isLocalDev && updatedSnapshot) {
@@ -3647,54 +3648,55 @@
       if (!streamIsHealthy) fetchSession();
     }, config.pollIntervalMs || 3000);
   } else {
-    // ── PRODUCTION (Vercel): client-driven data fetching ────────────────────
-    // Vercel serverless has NO persistent state — /api/session always returns
-    // defaults (EURUSD/idle). We skip SSE and polling entirely and instead:
-    //   1. On load: fetch the user's saved symbol from localStorage
-    //   2. Auto-refresh: re-fetch the same symbol every 30s for live prices
-    const saved = loadUserSelection();
-    const initSymbol = saved?.symbol || config.defaultSymbol || "EURUSD";
-    const initTf = saved?.timeframe || config.defaultTimeframe || "1h";
+    const savedLastCmd = localStorage.getItem("els_last_command");
+    if (savedLastCmd && savedLastCmd.trim() && !savedLastCmd.toLowerCase().startsWith("export")) {
+      // Auto-run last command on refresh/boot
+      executeWebTerminalCommand(savedLastCmd);
+    } else {
+      // Initial default data fetch
+      const saved = loadUserSelection();
+      const initSymbol = saved?.symbol || config.defaultSymbol || "EURUSD";
+      const initTf = saved?.timeframe || config.defaultTimeframe || "1h";
 
-    // Initial data fetch
-    (async () => {
-      try {
-        showLoadingState(`Loading ${initSymbol} (${initTf})`, "Initializing ELS Terminal with Qwen 2.5 AI...");
-        if (statusCard) {
-          statusCard.dataset.tone = "loading";
-          if (statusLabel) statusLabel.textContent = "Loading...";
-          if (statusDetail) statusDetail.textContent = `Fetching ${initSymbol}...`;
+      (async () => {
+        try {
+          showLoadingState(`Loading ${initSymbol} (${initTf})`, "Initializing ELS Terminal with Qwen 2.5 AI...");
+          if (statusCard) {
+            statusCard.dataset.tone = "loading";
+            if (statusLabel) statusLabel.textContent = "Loading...";
+            if (statusDetail) statusDetail.textContent = `Fetching ${initSymbol}...`;
+          }
+          const res = await fetchWithTimeout(`/api/market?symbol=${encodeURIComponent(initSymbol)}&timeframe=${encodeURIComponent(initTf)}`);
+          if (!res.ok) throw new Error("Failed to load market data");
+          const data = await res.json();
+          const sym = data.providerSymbol || initSymbol;
+          saveUserSelection(sym, initTf);
+          renderedSnapshot = {
+            selection: { symbol: sym, timeframe: initTf },
+            latest: data,
+            status: { mode: "active", label: "Active", detail: `Viewing ${data.displaySymbol || sym}`, updatedAt: Date.now() },
+            watch: {},
+            version: 1,
+            history: [],
+          };
+          lastRenderKey = "";
+          renderMarket(renderedSnapshot);
+          if (statusCard) {
+            statusCard.dataset.tone = "active";
+            if (statusLabel) statusLabel.textContent = "Active";
+            if (statusDetail) statusDetail.textContent = `Viewing ${data.displaySymbol || sym}`;
+          }
+        } catch (err) {
+          if (statusCard) {
+            statusCard.dataset.tone = "error";
+            if (statusLabel) statusLabel.textContent = "Error";
+            if (statusDetail) statusDetail.textContent = err.message;
+          }
+        } finally {
+          hideLoadingState();
         }
-        const res = await fetchWithTimeout(`/api/market?symbol=${encodeURIComponent(initSymbol)}&timeframe=${encodeURIComponent(initTf)}`);
-        if (!res.ok) throw new Error("Failed to load market data");
-        const data = await res.json();
-        const sym = data.providerSymbol || initSymbol;
-        saveUserSelection(sym, initTf);
-        renderedSnapshot = {
-          selection: { symbol: sym, timeframe: initTf },
-          latest: data,
-          status: { mode: "active", label: "Active", detail: `Viewing ${data.displaySymbol || sym}`, updatedAt: Date.now() },
-          watch: {},
-          version: 1,
-          history: [],
-        };
-        lastRenderKey = "";
-        renderMarket(renderedSnapshot);
-        if (statusCard) {
-          statusCard.dataset.tone = "active";
-          if (statusLabel) statusLabel.textContent = "Active";
-          if (statusDetail) statusDetail.textContent = `Viewing ${data.displaySymbol || sym}`;
-        }
-      } catch (err) {
-        if (statusCard) {
-          statusCard.dataset.tone = "error";
-          if (statusLabel) statusLabel.textContent = "Error";
-          if (statusDetail) statusDetail.textContent = err.message;
-        }
-      } finally {
-        hideLoadingState();
-      }
-    })();
+      })();
+    }
 
     // Auto-refresh: high-frequency 4s real-time live data polling
     let liveUpdatesCount = 0;
@@ -4135,66 +4137,149 @@
     }
   }
 
-  // ── Mobile Chart Zoom Buttons ──
-  const zoomInBtn = document.getElementById("chart-zoom-in");
-  const zoomOutBtn = document.getElementById("chart-zoom-out");
-  const zoomResetBtn = document.getElementById("chart-zoom-reset");
-
-  if (zoomInBtn) {
-    zoomInBtn.addEventListener("click", () => {
-      const chart = chartState.instance;
-      if (chart && chart.kind === "klinecharts") {
-        chart.zoomAtCoordinate({ x: chartContainer.clientWidth / 2, y: 0 }, 1.3);
-      }
-    });
-  }
-  if (zoomOutBtn) {
-    zoomOutBtn.addEventListener("click", () => {
-      const chart = chartState.instance;
-      if (chart && chart.kind === "klinecharts") {
-        chart.zoomAtCoordinate({ x: chartContainer.clientWidth / 2, y: 0 }, 0.75);
-      }
-    });
-  }
-  if (zoomResetBtn) {
-    zoomResetBtn.addEventListener("click", () => {
-      const chart = chartState.instance;
-      if (chart && chart.kind === "klinecharts") {
-        chart.scrollToRealTime();
-        chart.setBarSpace(8);
-      }
-    });
-  }
-
-  // ── Mobile Pinch-to-Zoom ──
-  (function bindPinchZoom() {
+  // ── TradingView-Style Interactive Price Scale & Time Scale Touch/Drag Engine ──
+  (function bindTradingViewGestures() {
     if (!chartContainer) return;
-    let lastDist = null;
+
+    let touchMode = "none"; // 'price-scale', 'time-scale', 'pinch', 'pan'
+    let startX = 0;
+    let startY = 0;
+    let lastY = 0;
+    let lastX = 0;
+    let initialPinchDist = null;
+    let lastTapTime = 0;
+
+    const getChart = () => chartState.instance?.kind === "klinecharts" ? chartState.instance : null;
+
+    function handleStart(clientX, clientY, touchCount = 1) {
+      const chart = getChart();
+      if (!chart) return;
+      const rect = chartContainer.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+
+      startX = clientX;
+      startY = clientY;
+      lastX = clientX;
+      lastY = clientY;
+
+      // Check for double-tap on scale rails to reset
+      const now = Date.now();
+      const isDoubleTap = now - lastTapTime < 320;
+      lastTapTime = now;
+
+      // Price scale is the rightmost 75px
+      const isPriceScale = x >= (rect.width - 75);
+      // Time scale is the bottom 32px
+      const isTimeScale = y >= (rect.height - 32);
+
+      if (isPriceScale) {
+        if (isDoubleTap) {
+          chart.setBarSpace(8);
+          chart.scrollToRealTime(0);
+          return;
+        }
+        touchMode = "price-scale";
+      } else if (isTimeScale) {
+        if (isDoubleTap) {
+          chart.setBarSpace(8);
+          chart.scrollToRealTime(0);
+          return;
+        }
+        touchMode = "time-scale";
+      } else if (touchCount === 2) {
+        touchMode = "pinch";
+      } else {
+        touchMode = "pan";
+      }
+    }
+
+    function handleMove(clientX, clientY, pinchDist = null) {
+      const chart = getChart();
+      if (!chart) return;
+      const rect = chartContainer.getBoundingClientRect();
+
+      if (touchMode === "price-scale") {
+        // Dragging price scale vertically: scale price axis / zoom vertically
+        const deltaY = clientY - lastY;
+        if (Math.abs(deltaY) >= 1) {
+          // Drag down expands/zooms in, drag up compresses/zooms out
+          const scale = deltaY > 0 ? 1.03 : 0.97;
+          chart.zoomAtCoordinate({ x: rect.width - 80, y: clientY - rect.top }, scale);
+          lastY = clientY;
+        }
+      } else if (touchMode === "time-scale") {
+        // Dragging time scale horizontally: expands/contracts candle spacing
+        const deltaX = clientX - lastX;
+        if (Math.abs(deltaX) >= 2) {
+          const currentSpace = chart.getBarSpace ? chart.getBarSpace() : 8;
+          const newSpace = Math.max(2, Math.min(50, currentSpace + (deltaX > 0 ? 0.35 : -0.35)));
+          chart.setBarSpace(newSpace);
+          lastX = clientX;
+        }
+      } else if (touchMode === "pinch" && pinchDist && initialPinchDist) {
+        const factor = pinchDist / initialPinchDist;
+        if (Math.abs(factor - 1) > 0.02) {
+          const scale = factor > 1 ? 1.04 : 0.96;
+          chart.zoomAtCoordinate({ x: clientX - rect.left, y: clientY - rect.top }, scale);
+          initialPinchDist = pinchDist;
+        }
+      }
+    }
+
+    function handleEnd() {
+      touchMode = "none";
+      initialPinchDist = null;
+    }
+
+    // Touch events for Mobile
     chartContainer.addEventListener("touchstart", (e) => {
       if (e.touches.length === 2) {
+        touchMode = "pinch";
         const dx = e.touches[0].clientX - e.touches[1].clientX;
         const dy = e.touches[0].clientY - e.touches[1].clientY;
-        lastDist = Math.sqrt(dx * dx + dy * dy);
+        initialPinchDist = Math.sqrt(dx * dx + dy * dy);
+        const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        handleStart(midX, midY, 2);
+      } else if (e.touches.length === 1) {
+        handleStart(e.touches[0].clientX, e.touches[0].clientY, 1);
       }
     }, { passive: true });
+
     chartContainer.addEventListener("touchmove", (e) => {
       if (e.touches.length === 2) {
         const dx = e.touches[0].clientX - e.touches[1].clientX;
         const dy = e.touches[0].clientY - e.touches[1].clientY;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        if (lastDist && Math.abs(dist - lastDist) > 2) {
-          const scaleFactor = dist / lastDist;
-          const chart = chartState.instance;
-          const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-          const chartRect = chartContainer.getBoundingClientRect();
-          if (chart && chart.kind === "klinecharts") {
-            chart.zoomAtCoordinate({ x: cx - chartRect.left, y: 0 }, scaleFactor > 1 ? 1.04 : 0.97);
-          }
-          lastDist = dist;
-        }
+        const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        handleMove(midX, midY, dist);
+      } else if (e.touches.length === 1) {
+        handleMove(e.touches[0].clientX, e.touches[0].clientY);
       }
     }, { passive: true });
-    chartContainer.addEventListener("touchend", () => { lastDist = null; }, { passive: true });
+
+    chartContainer.addEventListener("touchend", handleEnd, { passive: true });
+    chartContainer.addEventListener("touchcancel", handleEnd, { passive: true });
+
+    // Mouse drag on Price/Time scale for Desktop
+    let isMouseDown = false;
+    chartContainer.addEventListener("mousedown", (e) => {
+      isMouseDown = true;
+      handleStart(e.clientX, e.clientY, 1);
+    });
+    window.addEventListener("mousemove", (e) => {
+      if (isMouseDown) {
+        handleMove(e.clientX, e.clientY);
+      }
+    });
+    window.addEventListener("mouseup", () => {
+      if (isMouseDown) {
+        isMouseDown = false;
+        handleEnd();
+      }
+    });
   })();
 
   // ── Paper Trading Preset Pills & Quick Order ──
