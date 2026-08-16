@@ -1,0 +1,28 @@
+{
+  "name": "ELS Terminal",
+  "short_name": "ELS",
+  "description": "Professional trading analysis terminal — live market data, AI signals & news.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0d1117",
+  "theme_color": "#131722",
+  "categories": ["finance", "productivity"],
+  "icons": [
+    {
+      "src": "/icon-512.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "lang": "en"
+}
