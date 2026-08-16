@@ -452,6 +452,9 @@ function createApp(options = {}) {
     }
   });
 
+  // Cooldown store for automated scanner alerts (prevent spamming every 2 min)
+  const recentAlertsCooldown = new Map();
+
   // ── Autonomous Telegram & Discord Scanner Cron ──
   // Runs automatically via Vercel Cron every 10 minutes or external ping
   app.all("/api/cron/scan", async (req, res) => {
@@ -459,7 +462,7 @@ function createApp(options = {}) {
       const token = req.query.botToken || serverTelegramConfig.botToken || process.env.TELEGRAM_BOT_TOKEN;
       const chat = req.query.chatId || serverTelegramConfig.chatId || process.env.TELEGRAM_CHAT_ID;
       const webhook = req.query.webhookUrl || serverTelegramConfig.discordWebhook || process.env.DISCORD_WEBHOOK_URL;
-      const minConf = Number(req.query.minConfluence || serverTelegramConfig.minConfluence || 75);
+      const minConf = Number(req.query.minConfluence || serverTelegramConfig.minConfluence || 60);
 
       if (!token && !webhook) {
         return res.json({
@@ -472,10 +475,18 @@ function createApp(options = {}) {
       const markets = await screener.scanMarkets("1h");
       const highQualitySetups = markets.filter(m => m.confluenceScore >= minConf);
       const sentAlerts = [];
+      const now = Date.now();
 
       for (const setup of highQualitySetups) {
+        const cooldownKey = `${setup.symbol}-${setup.bias}`;
+        const lastSent = recentAlertsCooldown.get(cooldownKey) || 0;
+        // Don't repeat the exact same alert within 30 minutes unless forced with ?force=true
+        if (!req.query.force && (now - lastSent < 30 * 60 * 1000)) {
+          continue;
+        }
+
         const alertPayload = {
-          symbol: setup.symbol,
+          symbol: setup.displaySymbol || setup.symbol,
           timeframe: "1h",
           direction: setup.bias,
           confluenceScore: setup.confluenceScore,
@@ -486,13 +497,15 @@ function createApp(options = {}) {
         if (token && chat) {
           try {
             await alertsEngine.sendTelegramAlert(token, chat, alertPayload);
-            sentAlerts.push({ symbol: setup.symbol, destination: "Telegram" });
+            sentAlerts.push({ symbol: setup.symbol, destination: "Telegram", confluence: setup.confluenceScore });
+            recentAlertsCooldown.set(cooldownKey, now);
           } catch (_) {}
         }
         if (webhook) {
           try {
             await alertsEngine.sendDiscordWebhook(webhook, alertPayload);
-            sentAlerts.push({ symbol: setup.symbol, destination: "Discord" });
+            sentAlerts.push({ symbol: setup.symbol, destination: "Discord", confluence: setup.confluenceScore });
+            recentAlertsCooldown.set(cooldownKey, now);
           } catch (_) {}
         }
       }
@@ -500,8 +513,10 @@ function createApp(options = {}) {
       res.json({
         status: "complete",
         scanned: markets.length,
+        minConfluence: minConf,
         triggeredSetups: highQualitySetups.length,
         dispatched: sentAlerts,
+        topMarket: markets[0] ? `${markets[0].displaySymbol} (${markets[0].confluenceScore}% confluence, ${markets[0].bias})` : null,
         timestamp: new Date().toISOString()
       });
     } catch (err) {

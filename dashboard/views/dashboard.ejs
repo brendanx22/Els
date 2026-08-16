@@ -492,6 +492,16 @@
                     <label>Telegram Chat ID</label>
                     <input type="text" id="cfg-tg-chatid" placeholder="@mychannel or -100123..." />
                   </div>
+                  <div class="paper-input-group" style="margin-bottom:10px">
+                    <label>Alert Confluence Sensitivity</label>
+                    <select id="cfg-min-confluence" style="background:var(--surface);border:1px solid var(--border-strong);color:var(--ink-bright);padding:6px 8px;border-radius:4px;width:100%;font-size:11px;">
+                      <option value="55">55% - High Frequency (All Setups)</option>
+                      <option value="60" selected>60% - Moderate (Recommended)</option>
+                      <option value="65">65% - Balanced & Solid</option>
+                      <option value="70">70% - High Confidence</option>
+                      <option value="75">75% - Ultra Strict (Rare A+)</option>
+                    </select>
+                  </div>
                   <button class="action-btn-small" id="test-telegram-btn" style="margin-bottom:8px">Test Telegram Alert</button>
                   <button class="action-btn-small" id="run-scanner-cron-btn" style="margin-bottom:12px;background:rgba(0,255,136,0.1);border-color:var(--accent);color:var(--accent);">⚡ Run Autonomous Scanner Now</button>
                   <div id="scanner-result-box" style="display:none;font-size:11px;padding:8px;background:rgba(0,0,0,0.4);border-radius:4px;border:1px solid var(--border-subtle);margin-bottom:12px;color:var(--ink);line-height:1.4;"></div>

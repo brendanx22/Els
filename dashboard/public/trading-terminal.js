@@ -4297,6 +4297,7 @@
   const cfgDiscordWebhook = document.getElementById("cfg-discord-webhook");
   const cfgTgToken = document.getElementById("cfg-tg-token");
   const cfgTgChatId = document.getElementById("cfg-tg-chatid");
+  const cfgMinConfluence = document.getElementById("cfg-min-confluence");
   const testDiscordBtn = document.getElementById("test-discord-btn");
   const testTgBtn = document.getElementById("test-telegram-btn");
   const copyBrokerBtn = document.getElementById("copy-broker-webhook-btn");
@@ -4305,25 +4306,35 @@
   const SAVED_TG_TOKEN = localStorage.getItem("els_tg_bot_token") || "";
   const SAVED_TG_CHAT = localStorage.getItem("els_tg_chat_id") || "";
   const SAVED_DISCORD_URL = localStorage.getItem("els_discord_webhook") || "";
+  const SAVED_MIN_CONF = localStorage.getItem("els_min_confluence") || "60";
 
   if (cfgTgToken && SAVED_TG_TOKEN) cfgTgToken.value = SAVED_TG_TOKEN;
   if (cfgTgChatId && SAVED_TG_CHAT) cfgTgChatId.value = SAVED_TG_CHAT;
   if (cfgDiscordWebhook && SAVED_DISCORD_URL) cfgDiscordWebhook.value = SAVED_DISCORD_URL;
+  if (cfgMinConfluence && SAVED_MIN_CONF) cfgMinConfluence.value = SAVED_MIN_CONF;
 
   // Auto-sync configuration with backend
-  async function syncAlertConfig(botToken, chatId, discordWebhook) {
+  async function syncAlertConfig(botToken, chatId, discordWebhook, minConfluence) {
     try {
+      const minConf = minConfluence || Number(localStorage.getItem("els_min_confluence") || 60);
       await fetch("/api/alerts/config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ botToken, chatId, discordWebhook, minConfluence: 75 })
+        body: JSON.stringify({ botToken, chatId, discordWebhook, minConfluence: minConf })
       });
     } catch (_) {}
   }
 
   // Initial sync on boot
-  if (SAVED_TG_TOKEN || SAVED_DISCORD_URL) {
-    syncAlertConfig(SAVED_TG_TOKEN, SAVED_TG_CHAT, SAVED_DISCORD_URL);
+  if (SAVED_TG_TOKEN || SAVED_DISCORD_URL || SAVED_MIN_CONF) {
+    syncAlertConfig(SAVED_TG_TOKEN, SAVED_TG_CHAT, SAVED_DISCORD_URL, Number(SAVED_MIN_CONF));
+  }
+
+  if (cfgMinConfluence) {
+    cfgMinConfluence.addEventListener("change", () => {
+      localStorage.setItem("els_min_confluence", cfgMinConfluence.value);
+      syncAlertConfig(cfgTgToken?.value.trim(), cfgTgChatId?.value.trim(), cfgDiscordWebhook?.value.trim(), Number(cfgMinConfluence.value));
+    });
   }
 
   if (cfgTgToken) {
@@ -4406,16 +4417,23 @@
           scannerResultBox.style.display = "block";
           scannerResultBox.innerHTML = `<em>Running multi-market quantitative scan across Forex, Crypto & Commodities...</em>`;
         }
-        const res = await fetch("/api/cron/scan");
+        const minConf = cfgMinConfluence?.value || localStorage.getItem("els_min_confluence") || "60";
+        const botToken = cfgTgToken?.value.trim() || "";
+        const chatId = cfgTgChatId?.value.trim() || "";
+        const q = new URLSearchParams({ minConfluence: minConf, force: "true" });
+        if (botToken) q.append("botToken", botToken);
+        if (chatId) q.append("chatId", chatId);
+        const res = await fetch(`/api/cron/scan?${q.toString()}`);
         const data = await res.json();
         if (scannerResultBox) {
           if (data.status === "complete") {
             const dispatchedCount = (data.dispatched || []).length;
+            const topStr = data.topMarket ? `<br>• Highest Confluence Market: <strong>${data.topMarket}</strong>` : "";
             scannerResultBox.innerHTML = `
               <strong style="color:var(--accent)">✅ Scanner Executed Successfully!</strong><br>
-              • Scanned: <strong>${data.scanned} markets</strong><br>
-              • High-Confluence Setups (&ge;75%): <strong>${data.triggeredSetups}</strong><br>
-              • Alerts Sent to Telegram: <strong>${dispatchedCount}</strong>
+              • Scanned: <strong>${data.scanned} markets</strong> (Min Confluence: ${data.minConfluence}%)<br>
+              • Setups Meeting Filter: <strong>${data.triggeredSetups}</strong>${topStr}<br>
+              • Alerts Dispatched: <strong>${dispatchedCount}</strong>
             `;
           } else if (data.status === "waiting_for_config") {
             scannerResultBox.innerHTML = `<span style="color:#ef5350">⚠️ ${escapeHtml(data.message)}</span>`;
