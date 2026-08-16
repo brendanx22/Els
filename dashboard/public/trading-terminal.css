@@ -1289,6 +1289,10 @@ body.light-mode .annotation-zone.smc-liquidity {
 .process-loading-progress-bar,
 .process-loading-progress-fill { display: none; }
 
+[hidden] {
+  display: none !important;
+}
+
 /* ── Macro Risk Warning Banner ── */
 .macro-risk-banner {
   display: flex;
@@ -1301,6 +1305,9 @@ body.light-mode .annotation-zone.smc-liquidity {
   font-size: 11px;
   font-weight: 600;
   animation: bannerPulse 2s infinite ease-in-out;
+}
+.macro-risk-banner[hidden] {
+  display: none !important;
 }
 @keyframes bannerPulse {
   0%, 100% { background: rgba(242, 54, 69, 0.12); }
@@ -1343,10 +1350,16 @@ body.light-mode .annotation-zone.smc-liquidity {
   position: fixed;
   inset: 0;
   z-index: 9999;
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   padding: 16px;
+}
+.screener-modal.open {
+  display: flex;
+}
+.screener-modal[hidden] {
+  display: none !important;
 }
 .screener-backdrop {
   position: absolute;

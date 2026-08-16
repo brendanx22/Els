@@ -3728,6 +3728,7 @@
 
   function openScreenerModal() {
     if (!screenerModal) return;
+    screenerModal.classList.add("open");
     screenerModal.hidden = false;
     screenerModal.removeAttribute("inert");
     screenerModal.removeAttribute("aria-hidden");
@@ -3745,6 +3746,7 @@
       document.activeElement.blur();
     }
     if (screenerToggleBtn) screenerToggleBtn.focus();
+    screenerModal.classList.remove("open");
     screenerModal.hidden = true;
     screenerModal.setAttribute("inert", "");
     screenerModal.removeAttribute("aria-hidden");
