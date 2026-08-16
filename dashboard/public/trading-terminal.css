@@ -1557,11 +1557,12 @@ body.light-mode .annotation-zone.smc-liquidity {
 .chart-frame,
 .chart-container,
 #chart-container {
-  touch-action: none;
+  /* Allow vertical scrolling and pinch‑zoom while disabling text selection */
+  touch-action: pan-y pinch-zoom;
   -webkit-user-select: none;
   user-select: none;
 }
-.chart-zoom-group {
+.chart-zoom-group { display: none !important; }
   display: flex;
   align-items: center;
   gap: 2px;
