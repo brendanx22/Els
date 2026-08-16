@@ -11,7 +11,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Trigger ELS Autonomous Scanner & Telegram Alerts
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DISCORD_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
-          curl -s -X GET "https://els-beta.vercel.app/api/cron/scan" \
+          curl -s -X GET "https://els-beta.vercel.app/api/cron/scan?timeframes=15m,1h,4h" \
             -H "User-Agent: ELS-GitHub-Actions-Scanner" \
-            --max-time 30 || echo "Scan trigger dispatched"
+            -H "x-telegram-token: $TG_TOKEN" \
+            -H "x-telegram-chat: $TG_CHAT" \
+            -H "x-discord-webhook: $DISCORD_URL" \
+            --max-time 45 || echo "Scan trigger dispatched"
+

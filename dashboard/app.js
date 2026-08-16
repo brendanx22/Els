@@ -390,31 +390,67 @@ function createApp(options = {}) {
   });
 
   // ── Real-Time Webhook & Alert Dispatcher ──
+  const fs = require("fs");
   const { AlertsEngine } = require("../trading/alertsEngine");
   const alertsEngine = new AlertsEngine();
 
-  // In-memory alert subscription store for serverless environment
+  const ALERT_CONFIG_PATH = path.join(__dirname, "..", "data", "alert_config.json");
+
+  function loadPersistedAlertConfig() {
+    try {
+      if (fs.existsSync(ALERT_CONFIG_PATH)) {
+        const raw = fs.readFileSync(ALERT_CONFIG_PATH, "utf-8");
+        return JSON.parse(raw);
+      }
+    } catch (_) {}
+    return {};
+  }
+
+  function savePersistedAlertConfig(cfg) {
+    try {
+      const dir = path.dirname(ALERT_CONFIG_PATH);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(ALERT_CONFIG_PATH, JSON.stringify(cfg, null, 2), "utf-8");
+    } catch (_) {}
+  }
+
+  const persistedConfig = loadPersistedAlertConfig();
+
+  // Alert subscription store (combining Env Vars, Persistent File Store & Runtime API sync)
   let serverTelegramConfig = {
-    botToken: process.env.TELEGRAM_BOT_TOKEN || "",
-    chatId: process.env.TELEGRAM_CHAT_ID || "",
-    discordWebhook: process.env.DISCORD_WEBHOOK_URL || "",
-    minConfluence: 75
+    botToken: process.env.TELEGRAM_BOT_TOKEN || persistedConfig.botToken || "",
+    chatId: process.env.TELEGRAM_CHAT_ID || persistedConfig.chatId || "",
+    discordWebhook: process.env.DISCORD_WEBHOOK_URL || persistedConfig.discordWebhook || "",
+    minConfluence: Number(process.env.MIN_CONFLUENCE || persistedConfig.minConfluence || 60),
+    timeframes: persistedConfig.timeframes || ["15m", "1h", "4h"]
   };
 
   app.post("/api/alerts/config", (req, res) => {
-    const { botToken, chatId, discordWebhook, minConfluence } = req.body;
+    const { botToken, chatId, discordWebhook, minConfluence, timeframes } = req.body;
     if (botToken !== undefined) serverTelegramConfig.botToken = botToken;
     if (chatId !== undefined) serverTelegramConfig.chatId = chatId;
     if (discordWebhook !== undefined) serverTelegramConfig.discordWebhook = discordWebhook;
     if (minConfluence !== undefined) serverTelegramConfig.minConfluence = Number(minConfluence);
-    res.json({ success: true, config: { minConfluence: serverTelegramConfig.minConfluence, configured: !!(serverTelegramConfig.botToken && serverTelegramConfig.chatId) } });
+    if (timeframes !== undefined) serverTelegramConfig.timeframes = Array.isArray(timeframes) ? timeframes : String(timeframes).split(",");
+    
+    savePersistedAlertConfig(serverTelegramConfig);
+
+    res.json({
+      success: true,
+      config: {
+        minConfluence: serverTelegramConfig.minConfluence,
+        timeframes: serverTelegramConfig.timeframes,
+        configured: !!(serverTelegramConfig.botToken && serverTelegramConfig.chatId)
+      }
+    });
   });
 
   app.get("/api/alerts/config", (req, res) => {
     res.json({
       configured: !!(serverTelegramConfig.botToken && serverTelegramConfig.chatId),
       hasDiscord: !!serverTelegramConfig.discordWebhook,
-      minConfluence: serverTelegramConfig.minConfluence
+      minConfluence: serverTelegramConfig.minConfluence,
+      timeframes: serverTelegramConfig.timeframes
     });
   });
 
@@ -455,14 +491,20 @@ function createApp(options = {}) {
   // Cooldown store for automated scanner alerts (prevent spamming every 2 min)
   const recentAlertsCooldown = new Map();
 
-  // ── Autonomous Telegram & Discord Scanner Cron ──
-  // Runs automatically via Vercel Cron every 10 minutes or external ping
+  // ── Autonomous Telegram & Discord Multi-Timeframe Scanner Cron ──
+  // Scans multiple timeframes (15m, 1h, 4h) automatically via Vercel Cron, GitHub Actions, or External Ping 24/7
   app.all("/api/cron/scan", async (req, res) => {
     try {
-      const token = req.query.botToken || serverTelegramConfig.botToken || process.env.TELEGRAM_BOT_TOKEN;
-      const chat = req.query.chatId || serverTelegramConfig.chatId || process.env.TELEGRAM_CHAT_ID;
-      const webhook = req.query.webhookUrl || serverTelegramConfig.discordWebhook || process.env.DISCORD_WEBHOOK_URL;
-      const minConf = Number(req.query.minConfluence || serverTelegramConfig.minConfluence || 55);
+      const token = req.query.botToken || req.headers["x-telegram-token"] || serverTelegramConfig.botToken || process.env.TELEGRAM_BOT_TOKEN;
+      const chat = req.query.chatId || req.headers["x-telegram-chat"] || serverTelegramConfig.chatId || process.env.TELEGRAM_CHAT_ID;
+      const webhook = req.query.webhookUrl || req.headers["x-discord-webhook"] || serverTelegramConfig.discordWebhook || process.env.DISCORD_WEBHOOK_URL;
+      const minConf = Number(req.query.minConfluence || serverTelegramConfig.minConfluence || 60);
+
+      // Determine which timeframes to scan (default to multi-timeframe: 15m, 1h, 4h)
+      const rawTfParam = req.query.timeframes || req.query.tf || "";
+      const targetTimeframes = rawTfParam
+        ? rawTfParam.split(",").map(t => t.trim()).filter(Boolean)
+        : (Array.isArray(serverTelegramConfig.timeframes) && serverTelegramConfig.timeframes.length ? serverTelegramConfig.timeframes : ["15m", "1h", "4h"]);
 
       if (!token && !webhook) {
         return res.json({
@@ -471,58 +513,75 @@ function createApp(options = {}) {
         });
       }
 
-      // Scan all major markets
-      const markets = await screener.scanMarkets("1h");
-      const highQualitySetups = markets.filter(m => m.confluenceScore >= minConf);
       const sentAlerts = [];
+      const triggeredSetups = [];
+      let totalMarketsScanned = 0;
       const now = Date.now();
 
-      for (const setup of highQualitySetups) {
-        const cooldownKey = `${setup.symbol}-${setup.bias}`;
-        const lastSent = recentAlertsCooldown.get(cooldownKey) || 0;
-        // Don't repeat the exact same alert within 30 minutes unless forced with ?force=true
-        if (!req.query.force && (now - lastSent < 30 * 60 * 1000)) {
-          continue;
-        }
+      // Scan all requested timeframes concurrently
+      const scanResults = await Promise.allSettled(
+        targetTimeframes.map(async (tf) => {
+          const markets = await screener.scanMarkets(tf);
+          return { tf, markets: Array.isArray(markets) ? markets : [] };
+        })
+      );
 
-        const alertPayload = {
-          symbol: setup.displaySymbol || setup.symbol,
-          timeframe: "1h",
-          direction: setup.bias,
-          confluenceScore: setup.confluenceScore,
-          price: setup.price,
-          entry: setup.entry,
-          stopLoss: setup.stopLoss,
-          takeProfit1: setup.takeProfit1,
-          takeProfit2: setup.takeProfit2,
-          riskReward: setup.riskReward,
-          setupType: setup.setupType,
-          detail: `SMC Status: ${setup.smcStatus} | 24h Change: ${setup.changePercent}% | RSI: ${setup.rsi}`
-        };
+      for (const resItem of scanResults) {
+        if (resItem.status !== "fulfilled") continue;
+        const { tf, markets } = resItem.value;
+        totalMarketsScanned += markets.length;
 
-        if (token && chat) {
-          try {
-            await alertsEngine.sendTelegramAlert(token, chat, alertPayload);
-            sentAlerts.push({ symbol: setup.symbol, destination: "Telegram", confluence: setup.confluenceScore });
-            recentAlertsCooldown.set(cooldownKey, now);
-          } catch (_) {}
-        }
-        if (webhook) {
-          try {
-            await alertsEngine.sendDiscordWebhook(webhook, alertPayload);
-            sentAlerts.push({ symbol: setup.symbol, destination: "Discord", confluence: setup.confluenceScore });
-            recentAlertsCooldown.set(cooldownKey, now);
-          } catch (_) {}
+        const highQualitySetups = markets.filter(m => m.confluenceScore >= minConf);
+        for (const setup of highQualitySetups) {
+          triggeredSetups.push({ ...setup, timeframe: tf });
+          const cooldownKey = `${setup.symbol}-${tf}-${setup.bias}`;
+          const lastSent = recentAlertsCooldown.get(cooldownKey) || 0;
+
+          // Don't repeat the exact same setup on the same timeframe within 30 minutes unless forced
+          if (!req.query.force && (now - lastSent < 30 * 60 * 1000)) {
+            continue;
+          }
+
+          const alertPayload = {
+            symbol: setup.displaySymbol || setup.symbol,
+            timeframe: tf,
+            direction: setup.bias,
+            confluenceScore: setup.confluenceScore,
+            price: setup.price,
+            entry: setup.entry,
+            stopLoss: setup.stopLoss,
+            takeProfit1: setup.takeProfit1,
+            takeProfit2: setup.takeProfit2,
+            riskReward: setup.riskReward,
+            setupType: setup.setupType,
+            detail: `[${tf.toUpperCase()}] SMC: ${setup.smcStatus} | 24h Change: ${setup.changePercent}% | RSI: ${setup.rsi}`
+          };
+
+          if (token && chat) {
+            try {
+              await alertsEngine.sendTelegramAlert(token, chat, alertPayload);
+              sentAlerts.push({ symbol: setup.symbol, timeframe: tf, destination: "Telegram", confluence: setup.confluenceScore });
+              recentAlertsCooldown.set(cooldownKey, now);
+            } catch (_) {}
+          }
+          if (webhook) {
+            try {
+              await alertsEngine.sendDiscordWebhook(webhook, alertPayload);
+              sentAlerts.push({ symbol: setup.symbol, timeframe: tf, destination: "Discord", confluence: setup.confluenceScore });
+              recentAlertsCooldown.set(cooldownKey, now);
+            } catch (_) {}
+          }
         }
       }
 
       res.json({
         status: "complete",
-        scanned: markets.length,
+        timeframesScanned: targetTimeframes,
+        totalMarketsScanned,
         minConfluence: minConf,
-        triggeredSetups: highQualitySetups.length,
+        triggeredSetupsCount: triggeredSetups.length,
+        dispatchedCount: sentAlerts.length,
         dispatched: sentAlerts,
-        topMarket: markets[0] ? `${markets[0].displaySymbol} (${markets[0].confluenceScore}% confluence, ${markets[0].bias})` : null,
         timestamp: new Date().toISOString()
       });
     } catch (err) {

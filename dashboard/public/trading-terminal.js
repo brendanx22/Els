@@ -4137,7 +4137,7 @@
     }
   }
 
-  // ── TradingView-Style Interactive Price Scale & Time Scale Touch/Drag Engine ──
+  // ── TradingView-Style Interactive Price Scale, Time Scale & Pinch/Wheel Zoom Engine ──
   (function bindTradingViewGestures() {
     if (!chartContainer) return;
 
@@ -4148,8 +4148,19 @@
     let lastX = 0;
     let initialPinchDist = null;
     let lastTapTime = 0;
+    let isMouseDown = false;
 
     const getChart = () => chartState.instance?.kind === "klinecharts" ? chartState.instance : null;
+
+    function isOverPriceScale(clientX) {
+      const rect = chartContainer.getBoundingClientRect();
+      return (clientX - rect.left) >= (rect.width - 75);
+    }
+
+    function isOverTimeScale(clientY) {
+      const rect = chartContainer.getBoundingClientRect();
+      return (clientY - rect.top) >= (rect.height - 32);
+    }
 
     function handleStart(clientX, clientY, touchCount = 1) {
       const chart = getChart();
@@ -4165,18 +4176,17 @@
 
       // Check for double-tap on scale rails to reset
       const now = Date.now();
-      const isDoubleTap = now - lastTapTime < 320;
+      const isDoubleTap = now - lastTapTime < 350;
       lastTapTime = now;
 
-      // Price scale is the rightmost 75px
       const isPriceScale = x >= (rect.width - 75);
-      // Time scale is the bottom 32px
       const isTimeScale = y >= (rect.height - 32);
 
       if (isPriceScale) {
         if (isDoubleTap) {
           chart.setBarSpace(8);
           chart.scrollToRealTime(0);
+          touchMode = "none";
           return;
         }
         touchMode = "price-scale";
@@ -4184,6 +4194,7 @@
         if (isDoubleTap) {
           chart.setBarSpace(8);
           chart.scrollToRealTime(0);
+          touchMode = "none";
           return;
         }
         touchMode = "time-scale";
@@ -4203,24 +4214,25 @@
         // Dragging price scale vertically: scale price axis / zoom vertically
         const deltaY = clientY - lastY;
         if (Math.abs(deltaY) >= 1) {
-          // Drag down expands/zooms in, drag up compresses/zooms out
-          const scale = deltaY > 0 ? 1.03 : 0.97;
-          chart.zoomAtCoordinate({ x: rect.width - 80, y: clientY - rect.top }, scale);
+          // Drag down expands price scale, drag up compresses price scale
+          const scale = deltaY > 0 ? 1.035 : 0.965;
+          chart.zoomAtCoordinate({ x: rect.width - 40, y: clientY - rect.top }, scale);
           lastY = clientY;
         }
       } else if (touchMode === "time-scale") {
         // Dragging time scale horizontally: expands/contracts candle spacing
         const deltaX = clientX - lastX;
-        if (Math.abs(deltaX) >= 2) {
+        if (Math.abs(deltaX) >= 1.5) {
           const currentSpace = chart.getBarSpace ? chart.getBarSpace() : 8;
           const newSpace = Math.max(2, Math.min(50, currentSpace + (deltaX > 0 ? 0.35 : -0.35)));
           chart.setBarSpace(newSpace);
           lastX = clientX;
         }
       } else if (touchMode === "pinch" && pinchDist && initialPinchDist) {
+        // Pinch-to-zoom (timeframe candle spacing)
         const factor = pinchDist / initialPinchDist;
-        if (Math.abs(factor - 1) > 0.02) {
-          const scale = factor > 1 ? 1.04 : 0.96;
+        if (Math.abs(factor - 1) > 0.015) {
+          const scale = factor > 1 ? 1.045 : 0.955;
           chart.zoomAtCoordinate({ x: clientX - rect.left, y: clientY - rect.top }, scale);
           initialPinchDist = pinchDist;
         }
@@ -4230,9 +4242,75 @@
     function handleEnd() {
       touchMode = "none";
       initialPinchDist = null;
+      isMouseDown = false;
+      if (chartContainer) chartContainer.style.cursor = "";
     }
 
-    // Touch events for Mobile
+    // ── Mouse Cursor Hover Feedback on Scale Rails ──
+    chartContainer.addEventListener("mousemove", (e) => {
+      if (isMouseDown) return;
+      if (isOverPriceScale(e.clientX)) {
+        chartContainer.style.cursor = "ns-resize";
+      } else if (isOverTimeScale(e.clientY)) {
+        chartContainer.style.cursor = "ew-resize";
+      } else {
+        chartContainer.style.cursor = "crosshair";
+      }
+    });
+
+    // ── Mouse Drag on Price/Time scale for Desktop ──
+    chartContainer.addEventListener("mousedown", (e) => {
+      if (e.button !== 0) return; // Only left click
+      if (isOverPriceScale(e.clientX) || isOverTimeScale(e.clientY)) {
+        isMouseDown = true;
+        handleStart(e.clientX, e.clientY, 1);
+        e.preventDefault();
+      }
+    });
+
+    window.addEventListener("mousemove", (e) => {
+      if (isMouseDown && (touchMode === "price-scale" || touchMode === "time-scale")) {
+        handleMove(e.clientX, e.clientY);
+        e.preventDefault();
+      }
+    });
+
+    window.addEventListener("mouseup", () => {
+      if (isMouseDown) {
+        handleEnd();
+      }
+    });
+
+    // ── Double Click on Scale Rails to Reset Viewport ──
+    chartContainer.addEventListener("dblclick", (e) => {
+      const chart = getChart();
+      if (!chart) return;
+      if (isOverPriceScale(e.clientX) || isOverTimeScale(e.clientY)) {
+        chart.setBarSpace(8);
+        chart.scrollToRealTime(0);
+        showToast("🔍 Chart scale reset to default auto-fit");
+      }
+    });
+
+    // ── Mouse Wheel Zoom (Price Scale vs Chart Body) ──
+    chartContainer.addEventListener("wheel", (e) => {
+      const chart = getChart();
+      if (!chart) return;
+      const rect = chartContainer.getBoundingClientRect();
+      e.preventDefault();
+
+      if (isOverPriceScale(e.clientX)) {
+        // Wheel over price scale: scale price vertically
+        const scale = e.deltaY < 0 ? 1.05 : 0.95;
+        chart.zoomAtCoordinate({ x: rect.width - 40, y: e.clientY - rect.top }, scale);
+      } else {
+        // Wheel over main chart: zoom candles centered at cursor
+        const scale = e.deltaY < 0 ? 1.08 : 0.92;
+        chart.zoomAtCoordinate({ x: e.clientX - rect.left, y: e.clientY - rect.top }, scale);
+      }
+    }, { passive: false });
+
+    // ── Touch Events for Mobile (Pinch-to-zoom & Scale Touch Drag) ──
     chartContainer.addEventListener("touchstart", (e) => {
       if (e.touches.length === 2) {
         touchMode = "pinch";
@@ -4242,10 +4320,15 @@
         const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
         const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
         handleStart(midX, midY, 2);
+        e.preventDefault();
       } else if (e.touches.length === 1) {
-        handleStart(e.touches[0].clientX, e.touches[0].clientY, 1);
+        const touch = e.touches[0];
+        handleStart(touch.clientX, touch.clientY, 1);
+        if (touchMode === "price-scale" || touchMode === "time-scale") {
+          e.preventDefault();
+        }
       }
-    }, { passive: true });
+    }, { passive: false });
 
     chartContainer.addEventListener("touchmove", (e) => {
       if (e.touches.length === 2) {
@@ -4255,16 +4338,17 @@
         const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
         const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
         handleMove(midX, midY, dist);
+        e.preventDefault();
       } else if (e.touches.length === 1) {
-        handleMove(e.touches[0].clientX, e.touches[0].clientY);
+        if (touchMode === "price-scale" || touchMode === "time-scale") {
+          handleMove(e.touches[0].clientX, e.touches[0].clientY);
+          e.preventDefault();
+        }
       }
-    }, { passive: true });
+    }, { passive: false });
 
     chartContainer.addEventListener("touchend", handleEnd, { passive: true });
     chartContainer.addEventListener("touchcancel", handleEnd, { passive: true });
-
-    // Desktop: no drag-to-zoom — zoom via scroll-wheel / built-in ApexCharts controls only.
-    // Pinch-to-zoom (touch) is handled above for mobile.
   })();
 
   // ── MT5-Style Order Panel Controller ──
@@ -4547,33 +4631,80 @@
   }
 
   const runScannerBtn = document.getElementById("run-scanner-cron-btn");
+  const copyCronUrlBtn = document.getElementById("copy-cron-url-btn");
   const scannerResultBox = document.getElementById("scanner-result-box");
+
+  function getSelectedTimeframes() {
+    const tfs = [];
+    if (document.getElementById("tf-15m")?.checked) tfs.push("15m");
+    if (document.getElementById("tf-1h")?.checked) tfs.push("1h");
+    if (document.getElementById("tf-4h")?.checked) tfs.push("4h");
+    return tfs.length ? tfs : ["15m", "1h", "4h"];
+  }
+
+  if (copyCronUrlBtn) {
+    copyCronUrlBtn.addEventListener("click", () => {
+      const botToken = cfgTgToken?.value.trim() || localStorage.getItem("els_tg_bot_token") || "";
+      const chatId = cfgTgChatId?.value.trim() || localStorage.getItem("els_tg_chat_id") || "";
+      const webhookUrl = cfgDiscordWebhook?.value.trim() || localStorage.getItem("els_discord_webhook") || "";
+      const minConf = cfgMinConfluence?.value || localStorage.getItem("els_min_confluence") || "60";
+      const tfs = getSelectedTimeframes().join(",");
+
+      const origin = window.location.origin.includes("localhost") ? "https://els-beta.vercel.app" : window.location.origin;
+      const q = new URLSearchParams({ minConfluence: minConf, timeframes: tfs });
+      if (botToken) q.append("botToken", botToken);
+      if (chatId) q.append("chatId", chatId);
+      if (webhookUrl) q.append("webhookUrl", webhookUrl);
+
+      const fullUrl = `${origin}/api/cron/scan?${q.toString()}`;
+      navigator.clipboard.writeText(fullUrl).then(() => {
+        showToast("📋 24/7 Offline Cron URL copied to clipboard!");
+        if (scannerResultBox) {
+          scannerResultBox.style.display = "block";
+          scannerResultBox.innerHTML = `
+            <strong style="color:var(--accent)">📋 24/7 Offline Cron URL Copied!</strong><br>
+            <span style="font-size:10px;word-break:break-all;color:var(--ink-bright);">${escapeHtml(fullUrl)}</span><br><br>
+            <strong>To run 24/7 with zero browser tabs open:</strong><br>
+            1. Paste this URL into any free cron pinger (e.g., <a href="https://cron-job.org" target="_blank" style="color:var(--accent)">cron-job.org</a> or UptimeRobot) to ping every 10-15 mins.<br>
+            2. Or add <code>TELEGRAM_BOT_TOKEN</code> and <code>TELEGRAM_CHAT_ID</code> into your Vercel Project Environment Variables.
+          `;
+        }
+      }).catch(() => {
+        prompt("Copy your 24/7 Background Cron URL:", fullUrl);
+      });
+    });
+  }
+
   if (runScannerBtn) {
     runScannerBtn.addEventListener("click", async () => {
       try {
-        runScannerBtn.textContent = "Scanning all markets...";
+        const tfs = getSelectedTimeframes();
+        runScannerBtn.textContent = `Scanning ${tfs.join(", ")} markets...`;
         runScannerBtn.disabled = true;
         if (scannerResultBox) {
           scannerResultBox.style.display = "block";
-          scannerResultBox.innerHTML = `<em>Running multi-market quantitative scan across Forex, Crypto & Commodities...</em>`;
+          scannerResultBox.innerHTML = `<em>Running multi-timeframe quantitative scan across [${tfs.join(", ")}] for Forex, Crypto & Commodities...</em>`;
         }
         const minConf = cfgMinConfluence?.value || localStorage.getItem("els_min_confluence") || "60";
         const botToken = cfgTgToken?.value.trim() || "";
         const chatId = cfgTgChatId?.value.trim() || "";
-        const q = new URLSearchParams({ minConfluence: minConf, force: "true" });
+        const webhookUrl = cfgDiscordWebhook?.value.trim() || "";
+        const q = new URLSearchParams({ minConfluence: minConf, timeframes: tfs.join(","), force: "true" });
         if (botToken) q.append("botToken", botToken);
         if (chatId) q.append("chatId", chatId);
+        if (webhookUrl) q.append("webhookUrl", webhookUrl);
+
         const res = await fetch(`/api/cron/scan?${q.toString()}`);
         const data = await res.json();
         if (scannerResultBox) {
           if (data.status === "complete") {
-            const dispatchedCount = (data.dispatched || []).length;
-            const topStr = data.topMarket ? `<br>• Highest Confluence Market: <strong>${data.topMarket}</strong>` : "";
+            const dispatchedList = (data.dispatched || []).map(d => `${d.symbol} (${d.timeframe}, ${d.confluence}%)`).join(", ");
             scannerResultBox.innerHTML = `
-              <strong style="color:var(--accent)">✅ Scanner Executed Successfully!</strong><br>
-              • Scanned: <strong>${data.scanned} markets</strong> (Min Confluence: ${data.minConfluence}%)<br>
-              • Setups Meeting Filter: <strong>${data.triggeredSetups}</strong>${topStr}<br>
-              • Alerts Dispatched: <strong>${dispatchedCount}</strong>
+              <strong style="color:var(--accent)">✅ Multi-Timeframe Scan Complete!</strong><br>
+              • Timeframes Scanned: <strong>${(data.timeframesScanned || []).join(", ")}</strong><br>
+              • Total Market Candles Analyzed: <strong>${data.totalMarketsScanned}</strong><br>
+              • Setups ≥ ${data.minConfluence}% Confluence: <strong>${data.triggeredSetupsCount}</strong><br>
+              • Telegram / Discord Alerts Sent: <strong>${data.dispatchedCount}</strong> ${dispatchedList ? `(${dispatchedList})` : ""}
             `;
           } else if (data.status === "waiting_for_config") {
             scannerResultBox.innerHTML = `<span style="color:#ef5350">⚠️ ${escapeHtml(data.message)}</span>`;
@@ -4584,7 +4715,7 @@
       } catch (err) {
         if (scannerResultBox) scannerResultBox.innerHTML = `<span style="color:#ef5350">❌ Error: ${escapeHtml(err.message)}</span>`;
       } finally {
-        runScannerBtn.textContent = "⚡ Run Autonomous Scanner Now";
+        runScannerBtn.textContent = "⚡ Scan All Timeframes Now (15m, 1h, 4h)";
         runScannerBtn.disabled = false;
       }
     });
