@@ -209,13 +209,40 @@ function cleanInput(value) {
     .replace(/\//g, "");
 }
 
+const FRIENDLY_MAP = {
+  "GC=F": { displaySymbol: "XAUUSD", name: "Gold" },
+  "SI=F": { displaySymbol: "XAGUSD", name: "Silver" },
+  "CL=F": { displaySymbol: "USOIL", name: "Crude Oil (WTI)" },
+  "BZ=F": { displaySymbol: "BRENT", name: "Brent Crude" },
+  "NQ=F": { displaySymbol: "NAS100", name: "Nasdaq 100" },
+  "ES=F": { displaySymbol: "US500", name: "S&P 500" },
+  "YM=F": { displaySymbol: "US30", name: "Dow Jones 30" },
+  "^AXJO": { displaySymbol: "AUS200", name: "Australia 200" },
+  "EURUSD=X": { displaySymbol: "EURUSD", name: "EUR/USD" },
+  "GBPJPY=X": { displaySymbol: "GBPJPY", name: "GBP/JPY" },
+  "GBPUSD=X": { displaySymbol: "GBPUSD", name: "GBP/USD" },
+  "USDJPY=X": { displaySymbol: "USDJPY", name: "USD/JPY" },
+  "AUDUSD=X": { displaySymbol: "AUDUSD", name: "AUD/USD" },
+  "USDCAD=X": { displaySymbol: "USDCAD", name: "USD/CAD" },
+  "USDCHF=X": { displaySymbol: "USDCHF", name: "USD/CHF" },
+  "NZDUSD=X": { displaySymbol: "NZDUSD", name: "NZD/USD" },
+  "BTC-USD": { displaySymbol: "BTCUSD", name: "Bitcoin / USD" },
+  "ETH-USD": { displaySymbol: "ETHUSD", name: "Ethereum / USD" },
+  "SOL-USD": { displaySymbol: "SOLUSD", name: "Solana / USD" },
+  "XRP-USD": { displaySymbol: "XRPUSD", name: "XRP / USD" }
+};
+
 function toDisplaySymbol(rawInput, resolvedSymbol) {
   const input = cleanInput(rawInput);
-
+  if (FRIENDLY_MAP[resolvedSymbol]) {
+    return FRIENDLY_MAP[resolvedSymbol].displaySymbol;
+  }
+  if (FRIENDLY_MAP[input]) {
+    return FRIENDLY_MAP[input].displaySymbol;
+  }
   if (input) {
     return input;
   }
-
   return resolvedSymbol;
 }
 
@@ -231,6 +258,13 @@ function resolveSymbol(input) {
     throw new Error("A symbol or pair is required.");
   }
 
+  if (FRIENDLY_MAP[cleaned]) {
+    return {
+      displaySymbol: FRIENDLY_MAP[cleaned].displaySymbol,
+      providerSymbol: cleaned,
+    };
+  }
+
   if (ALIAS_MAP[cleaned]) {
     return {
       displaySymbol: cleaned,
@@ -239,8 +273,9 @@ function resolveSymbol(input) {
   }
 
   if (cleaned.includes("=") || cleaned.includes("^") || cleaned.includes("-") || cleaned.includes(".")) {
+    const matched = FRIENDLY_MAP[cleaned];
     return {
-      displaySymbol: cleaned,
+      displaySymbol: matched ? matched.displaySymbol : cleaned,
       providerSymbol: cleaned,
     };
   }

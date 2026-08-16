@@ -3121,16 +3121,15 @@
 
     statusCard.dataset.tone = snapshot.status.mode || "live";
     statusLabel.textContent = snapshot.status.label || "Live";
-    statusDetail.textContent = snapshot.status.detail || "";
-    sessionSymbol.textContent = payload.displaySymbol;
+    sessionSymbol.textContent = formatSymbolName(payload.displaySymbol || payload.providerSymbol);
     sessionTimeframe.textContent = payload.timeframe.label;
     headlinePrice.textContent = `${formatPrice(payload.snapshot.price)} ${payload.snapshot.currency || ""}`.trim();
     headlineChange.textContent = formatChange(payload.snapshot.change, payload.snapshot.changePercent);
     headlineChange.style.color = Number(payload.snapshot.change) >= 0 ? "#089981" : "#f23645";
     lastCommand.textContent = latestCommand ? latestCommand.command : "--";
     lastCommandTime.textContent = latestCommand ? formatTimestamp(latestCommand.at) : "--";
-    headlineSymbol.textContent = payload.displaySymbol;
-    headlineMeta.textContent = `${payload.providerSymbol} | ${payload.timeframe.label}`;
+    headlineSymbol.textContent = formatSymbolName(payload.displaySymbol || payload.providerSymbol);
+    headlineMeta.textContent = `${formatSymbolName(payload.displaySymbol || payload.providerSymbol)} · ${payload.timeframe.label}`;
     providerLabel.textContent = chartMode === CHART_MODE_TRADINGVIEW ? "TradingView live" : "ELS annotated";
     updatedStat.textContent = formatUpdatedStat(payload.updatedAt);
     watchState.textContent = snapshot.watch.active ? "Watching" : "Paused";
@@ -3386,39 +3385,80 @@
     drawSentimentTimeline();
   });
 
+  // ── Friendly Symbol Formatter ──
+  const FRIENDLY_NAMES_MAP = {
+    "GC=F": "Gold (XAU/USD)",
+    "XAUUSD": "Gold (XAU/USD)",
+    "GOLD": "Gold (XAU/USD)",
+    "SI=F": "Silver (XAG/USD)",
+    "XAGUSD": "Silver (XAG/USD)",
+    "CL=F": "Crude Oil (WTI)",
+    "USOIL": "Crude Oil (WTI)",
+    "BZ=F": "Brent Crude",
+    "NQ=F": "Nasdaq 100",
+    "NAS100": "Nasdaq 100",
+    "ES=F": "S&P 500",
+    "US500": "S&P 500",
+    "YM=F": "Dow Jones 30",
+    "US30": "Dow Jones 30",
+    "^AXJO": "Australia 200",
+    "EURUSD=X": "EUR/USD",
+    "GBPJPY=X": "GBP/JPY",
+    "GBPUSD=X": "GBP/USD",
+    "USDJPY=X": "USD/JPY",
+    "BTC-USD": "Bitcoin (BTC/USD)",
+    "ETH-USD": "Ethereum (ETH/USD)",
+    "SOL-USD": "Solana (SOL/USD)"
+  };
+
+  function formatSymbolName(rawSym) {
+    if (!rawSym) return "--";
+    return FRIENDLY_NAMES_MAP[rawSym] || rawSym;
+  }
+
   // ── Global Loading & Blur State Controller ──
   const processOverlay = document.getElementById("process-loading-overlay");
   const processText = document.getElementById("process-loading-text");
   const processSub = document.getElementById("process-loading-sub");
   let loadingTimeout = null;
   let loadingFailsafe = null;
+  let showLoadingTime = 0;
 
   function showLoadingState(title, subtitle) {
     if (loadingTimeout) clearTimeout(loadingTimeout);
     if (loadingFailsafe) clearTimeout(loadingFailsafe);
-    if (snapshotArea) snapshotArea.classList.add("is-blurred");
+    showLoadingTime = Date.now();
     if (processOverlay) {
-      if (processText) processText.textContent = title || "Analyzing market structure...";
+      if (processText) processText.textContent = title || "Analyzing market...";
       if (processSub) processSub.textContent = subtitle || "Running Qwen 2.5 AI & SMC Engine";
       processOverlay.hidden = false;
       requestAnimationFrame(() => {
         processOverlay.classList.add("active");
       });
     }
-    // Hard failsafe: always dismiss loading state after 5 seconds
+    // Hard failsafe: always dismiss loading state after 6 seconds
     loadingFailsafe = setTimeout(() => {
-      hideLoadingState();
-    }, 5000);
+      hideLoadingState(true);
+    }, 6000);
   }
 
-  function hideLoadingState() {
+  function hideLoadingState(immediate = false) {
     if (loadingTimeout) clearTimeout(loadingTimeout);
-    if (loadingFailsafe) clearTimeout(loadingFailsafe);
-    if (snapshotArea) snapshotArea.classList.remove("is-blurred");
-    if (processOverlay) {
-      processOverlay.classList.remove("active");
-      processOverlay.hidden = true;
-    }
+    const elapsed = Date.now() - showLoadingTime;
+    const minWait = immediate ? 0 : Math.max(0, 350 - elapsed);
+
+    loadingTimeout = setTimeout(() => {
+      if (loadingFailsafe) clearTimeout(loadingFailsafe);
+      if (snapshotArea) snapshotArea.classList.remove("is-blurred");
+      if (processOverlay) {
+        processOverlay.classList.remove("active");
+        setTimeout(() => {
+          if (!processOverlay.classList.contains("active")) {
+            processOverlay.hidden = true;
+          }
+        }, 180);
+      }
+    }, minWait);
   }
 
   // Interactive Symbol Search & Timeframe handlers
@@ -4351,6 +4391,43 @@
         alert(`❌ Error: ${err.message}`);
       } finally {
         testTgBtn.textContent = "Test Telegram Alert";
+      }
+    });
+  }
+
+  const runScannerBtn = document.getElementById("run-scanner-cron-btn");
+  const scannerResultBox = document.getElementById("scanner-result-box");
+  if (runScannerBtn) {
+    runScannerBtn.addEventListener("click", async () => {
+      try {
+        runScannerBtn.textContent = "Scanning all markets...";
+        runScannerBtn.disabled = true;
+        if (scannerResultBox) {
+          scannerResultBox.style.display = "block";
+          scannerResultBox.innerHTML = `<em>Running multi-market quantitative scan across Forex, Crypto & Commodities...</em>`;
+        }
+        const res = await fetch("/api/cron/scan");
+        const data = await res.json();
+        if (scannerResultBox) {
+          if (data.status === "complete") {
+            const dispatchedCount = (data.dispatched || []).length;
+            scannerResultBox.innerHTML = `
+              <strong style="color:var(--accent)">✅ Scanner Executed Successfully!</strong><br>
+              • Scanned: <strong>${data.scanned} markets</strong><br>
+              • High-Confluence Setups (&ge;75%): <strong>${data.triggeredSetups}</strong><br>
+              • Alerts Sent to Telegram: <strong>${dispatchedCount}</strong>
+            `;
+          } else if (data.status === "waiting_for_config") {
+            scannerResultBox.innerHTML = `<span style="color:#ef5350">⚠️ ${escapeHtml(data.message)}</span>`;
+          } else {
+            scannerResultBox.innerHTML = `<span>${escapeHtml(data.message || JSON.stringify(data))}</span>`;
+          }
+        }
+      } catch (err) {
+        if (scannerResultBox) scannerResultBox.innerHTML = `<span style="color:#ef5350">❌ Error: ${escapeHtml(err.message)}</span>`;
+      } finally {
+        runScannerBtn.textContent = "⚡ Run Autonomous Scanner Now";
+        runScannerBtn.disabled = false;
       }
     });
   }
