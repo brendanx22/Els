@@ -11,6 +11,7 @@
   "dependencies": {
     "apexcharts": "^5.10.4",
     "axios": "^1.6.2",
+    "cheerio": "^1.0.0-rc.12",
     "dotenv": "^17.3.1",
     "ejs": "^3.1.9",
     "express": "^4.18.2",
@@ -19,7 +20,8 @@
     "nodemailer": "^6.9.7",
     "plotly.js-dist-min": "^3.4.0",
     "sqlite3": "^5.1.6",
-    "technicalindicators": "^3.1.0"
+    "technicalindicators": "^3.1.0",
+    "ws": "^8.16.0"
   },
   "optionalDependencies": {
     "vosk": "^0.3.32",

@@ -2,17 +2,26 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#131722" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="description" content="ELS Terminal — professional trading analysis" />
     <title>ELS Terminal</title>
-    <link rel="stylesheet" href="/trading-terminal.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+    <link rel="stylesheet" href="/trading-terminal.css?v=<%= Date.now() %>" />
   </head>
   <body>
-    <script>
-      window.TRADING_APP_CONFIG = <%= JSON.stringify(appConfig) %>;
-    </script>
+    <script>window.TRADING_APP_CONFIG = <%- JSON.stringify(appConfig) %>;</script>
 
     <main class="tv-shell" id="snapshot-area">
+
+      <!-- ═══════════ TOP BAR ═══════════ -->
       <header class="tv-topbar">
+
         <div class="brand-lockup">
           <div class="brand-mark">E</div>
           <div>
@@ -22,69 +31,96 @@
         </div>
 
         <div class="market-strip">
+
+          <article class="market-pill market-pill--secondary" id="status-card" data-tone="idle">
+            <div class="market-pill-label">Engine</div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <div class="market-pill-value" id="status-label">Idle</div>
+              <div class="market-pill-sub" id="status-detail">—</div>
+            </div>
+          </article>
+
+          <div class="topbar-divider"></div>
+
           <article class="market-pill">
-            <span>Symbol</span>
-            <strong id="session-symbol">--</strong>
-            <small id="session-timeframe">--</small>
+            <div class="market-pill-label">Symbol</div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <div class="market-pill-value" id="session-symbol">--</div>
+              <div class="market-pill-sub" id="session-timeframe">--</div>
+            </div>
           </article>
+
+          <div class="topbar-divider"></div>
+
           <article class="market-pill">
-            <span>Price</span>
-            <strong id="headline-price">--</strong>
-            <small id="headline-change">--</small>
+            <div class="market-pill-label">Price</div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <div class="market-pill-value" id="headline-price">--</div>
+              <div class="market-pill-sub" id="headline-change">--</div>
+            </div>
           </article>
-          <article class="market-pill" data-tone="idle" id="status-card">
-            <span>Engine</span>
-            <strong id="status-label">Idle</strong>
-            <small id="status-detail">Waiting for terminal input.</small>
+
+          <div class="topbar-divider"></div>
+
+          <article class="market-pill market-pill--secondary">
+            <div class="market-pill-label">Last command</div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <div class="market-pill-value" id="last-command">--</div>
+              <div class="market-pill-sub" id="last-command-time">--</div>
+            </div>
           </article>
-          <article class="market-pill">
-            <span>Last command</span>
-            <strong id="last-command">--</strong>
-            <small id="last-command-time">--</small>
-          </article>
+
+        </div>
+
+        <div class="topbar-actions">
+          <div class="symbol-search-wrap">
+            <input type="text" id="symbol-search-input" class="symbol-search-input" placeholder="Symbol (e.g. BTCUSD, GOLD)..." autocomplete="off" />
+            <button class="symbol-search-btn" id="symbol-search-btn" aria-label="Search symbol">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/></svg>
+            </button>
+          </div>
+          <span class="toolbar-chip" id="watch-state">Paused</span>
+          <span class="toolbar-chip" id="next-refresh">Live watch off</span>
+          <button class="topbar-btn" id="theme-toggle-btn" aria-label="Toggle theme">
+            <svg viewBox="0 0 16 16" fill="currentColor" id="theme-icon">
+              <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 13a6 6 0 1 1 0-12 6 6 0 0 1 0 12z"/>
+            </svg>
+          </button>
+          <button class="topbar-btn primary" id="panel-toggle-btn" aria-label="Toggle analysis panel">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zm8 0A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm-8 8A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3zm8 0A1.5 1.5 0 0 1 10.5 9h3a1.5 1.5 0 0 1 1.5 1.5v3a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 13.5v-3z"/></svg>
+            <span>Analysis</span>
+          </button>
         </div>
 
       </header>
 
+      <!-- ═══════════ WORKSPACE ═══════════ -->
       <section class="tv-workspace">
-        <aside class="tool-rail">
-          <div class="rail-stack">
-            <span class="rail-dot active">+</span>
-            <span class="rail-dot">Fx</span>
-            <span class="rail-dot">Fib</span>
-            <span class="rail-dot">SD</span>
-            <span class="rail-dot">FVG</span>
-            <span class="rail-dot">RSI</span>
-          </div>
 
-          <div class="rail-card">
-            <div class="rail-title">CLI</div>
-            <p>Terminal drives the active chart.</p>
-            <div class="command-pills">
-              <% appConfig.commandExamples.forEach((command) => { %>
-                <span class="command-pill"><%= command %></span>
-              <% }); %>
-            </div>
-          </div>
-        </aside>
-
+        <!-- CHART STAGE -->
         <section class="chart-stage chart-stage--tv">
+
           <div class="chart-toolbar">
-            <div>
+            <div class="chart-toolbar-left">
               <div class="toolbar-label">Chart</div>
               <h1 id="headline-symbol">No market selected</h1>
               <p id="headline-meta">Use the terminal to analyze or watch a symbol.</p>
             </div>
-
             <div class="toolbar-meta">
+              <div class="timeframe-buttons" id="timeframe-buttons">
+                <button class="tf-btn" data-tf="1m">1m</button>
+                <button class="tf-btn" data-tf="5m">5m</button>
+                <button class="tf-btn" data-tf="15m">15m</button>
+                <button class="tf-btn active" data-tf="1h">1h</button>
+                <button class="tf-btn" data-tf="4h">4h</button>
+                <button class="tf-btn" data-tf="1d">1d</button>
+              </div>
               <div class="chart-view-toggle" id="chart-view-toggle" role="tablist" aria-label="Chart mode">
                 <button id="chart-mode-tradingview" class="chart-view-button" type="button">TradingView</button>
                 <button id="chart-mode-local" class="chart-view-button" type="button">Annotated</button>
               </div>
               <span class="toolbar-chip" id="provider-label">--</span>
               <span class="toolbar-chip" id="updated-stat">--</span>
-              <span class="toolbar-chip" id="watch-state">Paused</span>
-              <span class="toolbar-chip" id="next-refresh">Enable live watch in terminal.</span>
             </div>
           </div>
 
@@ -93,7 +129,7 @@
             <span class="layer-tag">Fib</span>
             <span class="layer-tag">Supply / Demand</span>
             <span class="layer-tag">FVG</span>
-            <span class="layer-tag">RSI confirmation</span>
+            <span class="layer-tag">RSI</span>
           </div>
 
           <div class="chart-frame">
@@ -106,279 +142,452 @@
           </div>
 
           <div class="chart-stats">
-            <article class="chart-stat">
-              <span>Bias</span>
-              <strong id="bias-stat">--</strong>
-            </article>
-            <article class="chart-stat">
-              <span>Confidence</span>
-              <strong id="confidence-stat">--</strong>
-            </article>
-            <article class="chart-stat">
-              <span>Momentum</span>
-              <strong id="momentum-stat">--</strong>
-            </article>
-            <article class="chart-stat">
-              <span>Pattern</span>
-              <strong id="pattern-stat">--</strong>
-            </article>
-            <article class="chart-stat">
-              <span>Breakout</span>
-              <strong id="breakout-value">--</strong>
-            </article>
-            <article class="chart-stat">
-              <span>Range location</span>
-              <strong id="range-location-value">--</strong>
-            </article>
+            <article class="chart-stat"><span>Bias</span><strong id="bias-stat">--</strong></article>
+            <article class="chart-stat"><span>Confidence</span><strong id="confidence-stat">--</strong></article>
+            <article class="chart-stat"><span>Momentum</span><strong id="momentum-stat">--</strong></article>
+            <article class="chart-stat"><span>Pattern</span><strong id="pattern-stat">--</strong></article>
+            <article class="chart-stat"><span>Breakout</span><strong id="breakout-value">--</strong></article>
+            <article class="chart-stat"><span>Range loc</span><strong id="range-location-value">--</strong></article>
           </div>
+
         </section>
 
-        <aside class="smart-sidebar">
-          <section class="sidebar-panel thesis-panel">
-            <div class="panel-label">Strategy thesis</div>
-            <div class="confluence-head">
-              <div>
-                <strong id="confluence-value">--</strong>
-                <span>Confluence</span>
-              </div>
-              <div class="confluence-bar">
-                <div id="confluence-fill" class="confluence-fill"></div>
-              </div>
-            </div>
-            <p id="thesis-value" class="thesis-copy">Waiting for strategy output from the terminal.</p>
-            <div class="signal-grid compact ai-meta-grid">
-              <div class="signal-cell">
-                <span>AI provider</span>
-                <strong id="ai-provider-value">--</strong>
-              </div>
-              <div class="signal-cell">
-                <span>AI verdict</span>
-                <strong id="ai-verdict-value">--</strong>
-              </div>
-              <div class="signal-cell">
-                <span>Entry status</span>
-                <strong id="ai-status-value">--</strong>
-              </div>
-              <div class="signal-cell">
-                <span>AI confidence</span>
-                <strong id="ai-confidence-label">--</strong>
-              </div>
-            </div>
-            <div class="signal-grid">
-              <div class="signal-cell">
-                <span>Structure</span>
-                <strong id="structure-event-value">--</strong>
-              </div>
-              <div class="signal-cell">
-                <span>Location</span>
-                <strong id="location-value">--</strong>
-              </div>
-              <div class="signal-cell">
-                <span>Fib zone</span>
-                <strong id="fib-zone-value">--</strong>
-              </div>
-              <div class="signal-cell">
-                <span>RSI rule</span>
-                <strong id="rsi-rule-value">--</strong>
-              </div>
-              <div class="signal-cell">
-                <span>Regime</span>
-                <strong id="regime-value">--</strong>
-              </div>
-              <div class="signal-cell">
-                <span>Volatility</span>
-                <strong id="volatility-value">--</strong>
-              </div>
-            </div>
-          </section>
+        <!-- SLIDE-OVER / BOTTOM-SHEET OVERLAY -->
+        <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
-          <section class="sidebar-panel">
-            <div class="panel-label">Trade plans</div>
-            <div id="setup-stack" class="setup-stack">
-              <article class="setup-card">
-                <span class="setup-label">Awaiting market</span>
-                <strong>No setup yet</strong>
-                <p>Run terminal analysis to build Fib, supply and demand, FVG, and RSI-driven setups.</p>
-              </article>
-            </div>
-          </section>
+        <!-- ANALYSIS PANEL: bottom sheet on phone, right panel from md breakpoint up -->
+        <aside class="smart-sidebar" id="smart-sidebar">
 
-          <section class="sidebar-panel">
-            <div class="panel-label">News Analysis</div>
-            <div class="signal-grid compact">
-              <div class="signal-cell">
-                <span>Sentiment</span>
-                <strong id="news-sentiment-value">--</strong>
-              </div>
-              <div class="signal-cell">
-                <span>Impact</span>
-                <strong id="news-impact-value">--</strong>
-              </div>
-              <div class="signal-cell">
-                <span>Articles</span>
-                <strong id="news-articles-value">--</strong>
-              </div>
-              <div class="signal-cell">
-                <span>Key Events</span>
-                <strong id="news-events-value">--</strong>
-              </div>
-            </div>
-            <div class="panel-label secondary">News Summary</div>
-            <p id="news-summary-value" class="thesis-copy">No news data available.</p>
-          </section>
+          <div class="sidebar-header">
+            <span class="sidebar-header-title">Analysis</span>
+            <button class="sidebar-close-btn" id="sidebar-close-btn" aria-label="Close">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854z"/></svg>
+            </button>
+          </div>
 
-          <section class="sidebar-panel">
-            <div class="panel-label">Historical Movements</div>
-            <div class="signal-grid compact">
-              <div class="signal-cell">
-                <span>Price Change</span>
-                <strong id="movement-change-value">--</strong>
-              </div>
-              <div class="signal-cell">
-                <span>Volatility</span>
-                <strong id="movement-volatility-value">--</strong>
-              </div>
-              <div class="signal-cell">
-                <span>Momentum</span>
-                <strong id="movement-momentum-value">--</strong>
-              </div>
-              <div class="signal-cell">
-                <span>Trend</span>
-                <strong id="movement-trend-value">--</strong>
-              </div>
-            </div>
-            <div class="signal-grid">
-              <div class="signal-cell">
-                <span>Patterns</span>
-                <strong id="movement-patterns-value">--</strong>
-              </div>
-              <div class="signal-cell">
-                <span>Support</span>
-                <strong id="movement-support-value">--</strong>
-              </div>
-              <div class="signal-cell">
-                <span>Resistance</span>
-                <strong id="movement-resistance-value">--</strong>
-              </div>
-              <div class="signal-cell">
-                <span>Volume</span>
-                <strong id="movement-volume-value">--</strong>
-              </div>
-            </div>
-          </section>
+          <!-- Tab bar -->
+          <nav class="sidebar-tabs" role="tablist">
+            <button class="sidebar-tab active" data-tab="strategy" role="tab">Strategy</button>
+            <button class="sidebar-tab" data-tab="signals" role="tab">Signals</button>
+            <button class="sidebar-tab" data-tab="news" role="tab">News</button>
+            <button class="sidebar-tab" data-tab="more" role="tab">More</button>
+          </nav>
 
-          <section class="sidebar-panel">
-            <div class="panel-label">Score stack</div>
-            <div class="signal-grid compact">
-              <div class="signal-cell">
-                <span>Trend</span>
-                <strong id="trend-score-value">--</strong>
+          <div class="sidebar-content">
+
+            <!-- ── STRATEGY ── -->
+            <div class="tab-pane active" id="pane-strategy">
+
+              <div class="sidebar-panel thesis-panel">
+                <div class="panel-label">Strategy Thesis</div>
+
+                <div class="confluence-row">
+                  <div>
+                    <div class="confluence-score-big" id="confluence-value">--</div>
+                    <span>Confluence</span>
+                  </div>
+                  <div class="confluence-bar" style="flex:1;margin-left:8px">
+                    <div id="confluence-fill" class="confluence-fill"></div>
+                  </div>
+                </div>
+
+                <p id="thesis-value" class="thesis-copy">Waiting for strategy output from the terminal.</p>
+
+                <div class="data-grid ai-meta-grid">
+                  <div class="data-cell"><span>AI Provider</span><strong id="ai-provider-value">--</strong></div>
+                  <div class="data-cell"><span>AI Verdict</span><strong id="ai-verdict-value">--</strong></div>
+                  <div class="data-cell"><span>Entry Status</span><strong id="ai-status-value">--</strong></div>
+                  <div class="data-cell"><span>Confidence</span><strong id="ai-confidence-label">--</strong></div>
+                </div>
+
+                <div class="data-grid signal-grid">
+                  <div class="data-cell signal-cell"><span>Structure</span><strong id="structure-event-value">--</strong></div>
+                  <div class="data-cell signal-cell"><span>Location</span><strong id="location-value">--</strong></div>
+                  <div class="data-cell signal-cell"><span>Fib Zone</span><strong id="fib-zone-value">--</strong></div>
+                  <div class="data-cell signal-cell"><span>RSI Rule</span><strong id="rsi-rule-value">--</strong></div>
+                  <div class="data-cell signal-cell"><span>Regime</span><strong id="regime-value">--</strong></div>
+                  <div class="data-cell signal-cell"><span>Volatility</span><strong id="volatility-value">--</strong></div>
+                </div>
               </div>
-              <div class="signal-cell">
-                <span>Momentum</span>
-                <strong id="momentum-score-value">--</strong>
+
+              <div class="sidebar-panel">
+                <div class="panel-label">Scorecard</div>
+                <div class="data-grid signal-grid">
+                  <div class="data-cell signal-cell"><span>Trend</span><strong id="trend-score-value">--</strong></div>
+                  <div class="data-cell signal-cell"><span>Momentum</span><strong id="momentum-score-value">--</strong></div>
+                  <div class="data-cell signal-cell"><span>Structure</span><strong id="structure-score-value">--</strong></div>
+                  <div class="data-cell signal-cell"><span>Timing</span><strong id="timing-score-value">--</strong></div>
+                  <div class="data-cell signal-cell"><span>Volatility</span><strong id="volatility-score-value">--</strong></div>
+                  <div class="data-cell signal-cell"><span>ADX</span><strong id="adx-value">--</strong></div>
+                </div>
               </div>
-              <div class="signal-cell">
-                <span>Structure</span>
-                <strong id="structure-score-value">--</strong>
+
+              <div class="sidebar-panel">
+                <div class="panel-label">Trade Plans</div>
+                <div id="setup-stack" class="setup-stack">
+                  <article class="setup-card">
+                    <div class="setup-label">Awaiting market</div>
+                    <strong>No setup yet</strong>
+                    <p>Run terminal analysis to build setups.</p>
+                  </article>
+                </div>
               </div>
-              <div class="signal-cell">
-                <span>Timing</span>
-                <strong id="timing-score-value">--</strong>
+
+            </div><!-- /pane-strategy -->
+
+            <!-- ── SIGNALS ── -->
+            <div class="tab-pane" id="pane-signals">
+
+              <div class="signal-panel" id="signal-panel" hidden>
+                <div class="panel-label">🎯 Active Signal</div>
+                <div class="signal-header">
+                  <span class="signal-direction" id="signal-direction">--</span>
+                  <span class="signal-confidence" id="signal-confidence">--%</span>
+                </div>
+                <div class="data-grid signal-grid">
+                  <div class="data-cell signal-cell"><span>Entry</span><strong id="signal-entry-value">--</strong></div>
+                  <div class="data-cell signal-cell"><span>Stop Loss</span><strong id="signal-stop-value" class="color-red">--</strong></div>
+                  <div class="data-cell signal-cell"><span>Target 1</span><strong id="signal-target1-value" class="color-green">--</strong></div>
+                  <div class="data-cell signal-cell"><span>R:R</span><strong id="signal-rr-value">--</strong></div>
+                </div>
+                <p id="signal-catalyst" class="thesis-copy" style="margin-top:8px">--</p>
               </div>
-              <div class="signal-cell">
-                <span>Volatility</span>
-                <strong id="volatility-score-value">--</strong>
+
+              <div class="sidebar-panel">
+                <div class="panel-label">Predictive Analytics</div>
+                <div class="data-grid signal-grid">
+                  <div class="data-cell signal-cell"><span>1h Target</span><strong id="prediction-1h-value">--</strong></div>
+                  <div class="data-cell signal-cell"><span>4h Target</span><strong id="prediction-4h-value">--</strong></div>
+                  <div class="data-cell signal-cell"><span>Volatility</span><strong id="prediction-vol-value">--</strong></div>
+                  <div class="data-cell signal-cell"><span>Confidence</span><strong id="prediction-confidence-value">--</strong></div>
+                </div>
+                <div class="panel-label secondary">Probabilities</div>
+                <div class="probability-bars" id="probability-bars">
+                  <div class="prob-bar">
+                    <span>Bullish</span>
+                    <div class="prob-fill"><div class="prob-fill-inner bull" id="prob-bullish" style="width:0%"></div></div>
+                    <strong id="prob-bullish-value">0%</strong>
+                  </div>
+                  <div class="prob-bar">
+                    <span>Bearish</span>
+                    <div class="prob-fill"><div class="prob-fill-inner bear" id="prob-bearish" style="width:0%"></div></div>
+                    <strong id="prob-bearish-value">0%</strong>
+                  </div>
+                  <div class="prob-bar">
+                    <span>Sideways</span>
+                    <div class="prob-fill"><div class="prob-fill-inner side" id="prob-sideways" style="width:0%"></div></div>
+                    <strong id="prob-sideways-value">0%</strong>
+                  </div>
+                </div>
               </div>
-              <div class="signal-cell">
-                <span>ADX</span>
-                <strong id="adx-value">--</strong>
+
+              <div class="sidebar-panel">
+                <div class="panel-label">Multi-Timeframe</div>
+                <div class="mtf-score-display" id="confluence-mtf-score">
+                  <span>Score</span>
+                  <strong id="mtf-score-value">--</strong>
+                </div>
+                <div class="data-grid signal-grid">
+                  <div class="data-cell signal-cell"><span>Direction</span><strong id="mtf-direction-value">--</strong></div>
+                  <div class="data-cell signal-cell"><span>Strength</span><strong id="mtf-strength-value">--</strong></div>
+                  <div class="data-cell signal-cell"><span>Alignment</span><strong id="mtf-alignment-value">--</strong></div>
+                  <div class="data-cell signal-cell"><span>Divergences</span><strong id="mtf-divergences-value">--</strong></div>
+                </div>
               </div>
-            </div>
-          </section>
+
+            </div><!-- /pane-signals -->
+
+            <!-- ── NEWS ── -->
+            <div class="tab-pane" id="pane-news">
+
+              <div class="sidebar-panel">
+                <div class="panel-label">News Analysis</div>
+                <div class="data-grid signal-grid">
+                  <div class="data-cell signal-cell"><span>Sentiment</span><strong id="news-sentiment-value">--</strong></div>
+                  <div class="data-cell signal-cell"><span>Impact</span><strong id="news-impact-value">--</strong></div>
+                  <div class="data-cell signal-cell"><span>Articles</span><strong id="news-articles-value">--</strong></div>
+                  <div class="data-cell signal-cell"><span>Key Events</span><strong id="news-events-value">--</strong></div>
+                </div>
+                <div class="panel-label secondary">Summary</div>
+                <div class="news-summary" id="news-summary-value">No news data available.</div>
+              </div>
+
+              <div class="sidebar-panel">
+                <div class="panel-label">Historical Movements</div>
+                <div class="data-grid signal-grid">
+                  <div class="data-cell signal-cell"><span>Price Change</span><strong id="movement-change-value">--</strong></div>
+                  <div class="data-cell signal-cell"><span>Volatility</span><strong id="movement-volatility-value">--</strong></div>
+                  <div class="data-cell signal-cell"><span>Momentum</span><strong id="movement-momentum-value">--</strong></div>
+                  <div class="data-cell signal-cell"><span>Trend</span><strong id="movement-trend-value">--</strong></div>
+                  <div class="data-cell signal-cell"><span>Patterns</span><strong id="movement-patterns-value">--</strong></div>
+                  <div class="data-cell signal-cell"><span>Support</span><strong id="movement-support-value">--</strong></div>
+                  <div class="data-cell signal-cell"><span>Resistance</span><strong id="movement-resistance-value">--</strong></div>
+                  <div class="data-cell signal-cell"><span>Volume</span><strong id="movement-volume-value">--</strong></div>
+                </div>
+              </div>
+
+              <div class="sidebar-panel">
+                <div class="panel-label">Sentiment Timeline</div>
+                <div id="sentiment-timeline-chart" class="mini-chart">
+                  <canvas id="sentiment-canvas"></canvas>
+                </div>
+              </div>
+
+            </div><!-- /pane-news -->
+
+            <!-- ── MORE ── -->
+            <div class="tab-pane" id="pane-more">
+
+              <div class="sidebar-panel">
+                <div class="panel-label">Advanced Patterns</div>
+                <div class="data-grid signal-grid">
+                  <div class="data-cell signal-cell"><span>Candlestick</span><strong id="pattern-candlestick-value">--</strong></div>
+                  <div class="data-cell signal-cell"><span>Chart</span><strong id="pattern-chart-value">--</strong></div>
+                  <div class="data-cell signal-cell"><span>Harmonic</span><strong id="pattern-harmonic-value">--</strong></div>
+                  <div class="data-cell signal-cell"><span>SMC</span><strong id="pattern-smc-value">--</strong></div>
+                </div>
+                <div class="pattern-list" id="pattern-list">
+                  <p class="thesis-copy" style="margin:0">No patterns detected.</p>
+                </div>
+              </div>
+
+              <div class="sidebar-panel alerts-panel">
+                <div class="panel-label">🔔 Recent Alerts</div>
+                <div id="alerts-container" class="alerts-list">
+                  <p class="thesis-copy" style="margin:0">No alerts yet.</p>
+                </div>
+              </div>
+
+              <div class="sidebar-panel">
+                <div class="panel-label">WebSocket</div>
+                <div class="data-grid signal-grid">
+                  <div class="data-cell signal-cell"><span>Status</span><strong id="ws-status-value" class="color-dim">Disconnected</strong></div>
+                  <div class="data-cell signal-cell"><span>Latency</span><strong id="ws-latency-value">--</strong></div>
+                  <div class="data-cell signal-cell"><span>Updates</span><strong id="ws-updates-value">0</strong></div>
+                  <div class="data-cell signal-cell"><span>Alerts</span><strong id="ws-alerts-value">0</strong></div>
+                </div>
+              </div>
+
+              <div class="sidebar-panel">
+                <div class="panel-label">System Features</div>
+                <div class="feature-list">
+                  <div class="feature-item active" id="feature-news">📰 News</div>
+                  <div class="feature-item active" id="feature-patterns">🎯 Patterns</div>
+                  <div class="feature-item active" id="feature-predictive">🔮 Predictions</div>
+                  <div class="feature-item active" id="feature-mtf">📊 MTF</div>
+                  <div class="feature-item active" id="feature-alerts">🔔 Alerts</div>
+                  <div class="feature-item active" id="feature-ws">🔌 WebSocket</div>
+                </div>
+              </div>
+
+            </div><!-- /pane-more -->
+
+          </div><!-- /sidebar-content -->
         </aside>
-      </section>
 
-      <section class="tv-bottom">
-        <article class="bottom-panel">
-          <div class="panel-label">AI execution brief</div>
-          <ul id="risk-list" class="text-list">
-            <li>Waiting for AI risk review.</li>
-          </ul>
-          <div class="panel-label secondary">Next actions</div>
-          <ul id="next-actions-list" class="text-list">
-            <li>Run terminal analysis to generate an AI action plan.</li>
-          </ul>
-          <div class="panel-label secondary">Invalidations</div>
-          <ul id="invalidation-list" class="text-list">
-            <li>No invalidation rules yet.</li>
-          </ul>
-        </article>
+      </section><!-- /tv-workspace -->
 
-        <article class="bottom-panel">
-          <div class="panel-label">Execution levels</div>
-          <div class="levels-grid">
-            <div class="level-cell">
-              <span>EMA 20</span>
-              <strong id="ema20-value">--</strong>
-            </div>
-            <div class="level-cell">
-              <span>EMA 50</span>
-              <strong id="ema50-value">--</strong>
-            </div>
-            <div class="level-cell">
-              <span>EMA 200</span>
-              <strong id="ema200-value">--</strong>
-            </div>
-            <div class="level-cell">
-              <span>RSI 14</span>
-              <strong id="rsi-value">--</strong>
-            </div>
-            <div class="level-cell">
-              <span>MACD Hist</span>
-              <strong id="macd-value">--</strong>
-            </div>
-            <div class="level-cell">
-              <span>Support</span>
-              <strong id="support-value">--</strong>
-            </div>
-            <div class="level-cell">
-              <span>Resistance</span>
-              <strong id="resistance-value">--</strong>
-            </div>
-            <div class="level-cell">
-              <span>Demand zone</span>
-              <strong id="support-zone-value">--</strong>
-            </div>
-            <div class="level-cell">
-              <span>Supply zone</span>
-              <strong id="resistance-zone-value">--</strong>
-            </div>
-            <div class="level-cell">
-              <span>Fib entry</span>
-              <strong id="fib-entry-value">--</strong>
-            </div>
-            <div class="level-cell">
-              <span>Fib invalid</span>
-              <strong id="fib-invalid-value">--</strong>
-            </div>
-            <div class="level-cell">
-              <span>Range mid</span>
-              <strong id="range-midpoint-value">--</strong>
+      <!-- ═══════════ BOTTOM BAR ═══════════ -->
+      <section class="tv-bottom" id="tv-bottom">
+
+        <div class="tv-bottom-header" id="tv-bottom-header">
+          <span class="bottom-tab active" data-bottom-tab="levels">Levels</span>
+          <span class="bottom-tab" data-bottom-tab="brief">AI Brief</span>
+          <span class="bottom-tab" data-bottom-tab="log">Log</span>
+          <button class="bottom-toggle-btn" id="bottom-toggle-btn" aria-label="Expand levels">
+            <span>Expand</span>
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/></svg>
+          </button>
+        </div>
+
+        <div class="tv-bottom-body">
+
+          <!-- Levels -->
+          <div class="bottom-pane active" id="bottom-pane-levels">
+            <div class="levels-grid">
+              <div class="level-cell"><span>EMA 20</span><strong id="ema20-value">--</strong></div>
+              <div class="level-cell"><span>EMA 50</span><strong id="ema50-value">--</strong></div>
+              <div class="level-cell"><span>EMA 200</span><strong id="ema200-value">--</strong></div>
+              <div class="level-cell"><span>RSI 14</span><strong id="rsi-value">--</strong></div>
+              <div class="level-cell"><span>MACD Hist</span><strong id="macd-value">--</strong></div>
+              <div class="level-cell"><span>Support</span><strong id="support-value">--</strong></div>
+              <div class="level-cell"><span>Resistance</span><strong id="resistance-value">--</strong></div>
+              <div class="level-cell"><span>Demand Zone</span><strong id="support-zone-value">--</strong></div>
+              <div class="level-cell"><span>Supply Zone</span><strong id="resistance-zone-value">--</strong></div>
+              <div class="level-cell"><span>Fib Entry</span><strong id="fib-entry-value">--</strong></div>
+              <div class="level-cell"><span>Fib Invalid</span><strong id="fib-invalid-value">--</strong></div>
+              <div class="level-cell"><span>Range Mid</span><strong id="range-midpoint-value">--</strong></div>
             </div>
           </div>
-        </article>
 
-        <article class="bottom-panel">
-          <div class="panel-label">Terminal log</div>
-          <ol id="command-log" class="command-log">
-            <li>No terminal commands yet.</li>
-          </ol>
-        </article>
+          <!-- AI Brief -->
+          <div class="bottom-pane" id="bottom-pane-brief">
+            <div class="brief-grid">
+              <div>
+                <div class="brief-section-label">Execution Brief</div>
+                <ul id="risk-list" class="text-list"><li>Waiting for AI risk review.</li></ul>
+              </div>
+              <div>
+                <div class="brief-section-label">Next Actions</div>
+                <ul id="next-actions-list" class="text-list"><li>Run terminal analysis to generate an AI action plan.</li></ul>
+              </div>
+              <div>
+                <div class="brief-section-label">Invalidations</div>
+                <ul id="invalidation-list" class="text-list"><li>No invalidation rules yet.</li></ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Log -->
+          <div class="bottom-pane" id="bottom-pane-log">
+            <div class="web-terminal-bar">
+              <span class="web-terminal-prompt">els&gt;</span>
+              <input type="text" id="web-terminal-input" class="web-terminal-input" placeholder="Type terminal command e.g. analyze BTCUSD 15m..." autocomplete="off" />
+              <button id="web-terminal-btn" class="web-terminal-btn">Run</button>
+            </div>
+            <ol id="command-log" class="command-log">
+              <li>No terminal commands yet.</li>
+            </ol>
+          </div>
+
+        </div>
+
       </section>
+
     </main>
 
+    <!-- ── Inline UI controller ── -->
+    <script>
+    (function() {
+
+      /* ── Analysis panel toggle ── */
+      var sidebar   = document.getElementById('smart-sidebar');
+      var overlay   = document.getElementById('sidebar-overlay');
+      var openBtn   = document.getElementById('panel-toggle-btn');
+      var closeBtn  = document.getElementById('sidebar-close-btn');
+
+      function openPanel()  { sidebar.classList.add('open');  overlay.classList.add('active'); document.body.style.overflow = 'hidden'; }
+      function closePanel() { sidebar.classList.remove('open'); overlay.classList.remove('active'); document.body.style.overflow = ''; }
+
+      if (openBtn)  openBtn.addEventListener('click', function() { sidebar.classList.contains('open') ? closePanel() : openPanel(); });
+      if (closeBtn) closeBtn.addEventListener('click', closePanel);
+      if (overlay)  overlay.addEventListener('click', closePanel);
+
+      /* Swipe-down-to-close on the bottom sheet (touch only, mobile breakpoint) */
+      (function enableSwipeToClose() {
+        var startY = null;
+        var currentY = null;
+        var dragging = false;
+
+        sidebar.addEventListener('touchstart', function(e) {
+          if (window.innerWidth >= 768) return; // only a bottom sheet below md
+          if (sidebar.scrollTop > 0) return;
+          startY = e.touches[0].clientY;
+          dragging = true;
+          sidebar.style.transition = 'none';
+        }, { passive: true });
+
+        sidebar.addEventListener('touchmove', function(e) {
+          if (!dragging || startY === null) return;
+          currentY = e.touches[0].clientY;
+          var delta = currentY - startY;
+          if (delta > 0) sidebar.style.transform = 'translateY(' + delta + 'px)';
+        }, { passive: true });
+
+        sidebar.addEventListener('touchend', function() {
+          if (!dragging) return;
+          dragging = false;
+          sidebar.style.transition = '';
+          sidebar.style.transform = '';
+          var delta = (currentY || 0) - (startY || 0);
+          if (delta > 90) closePanel();
+          startY = null;
+          currentY = null;
+        });
+      })();
+
+      /* ── Sidebar tabs ── */
+      document.querySelectorAll('.sidebar-tab').forEach(function(tab) {
+        tab.addEventListener('click', function() {
+          document.querySelectorAll('.sidebar-tab').forEach(function(t) { t.classList.remove('active'); });
+          document.querySelectorAll('.tab-pane').forEach(function(p) { p.classList.remove('active'); });
+          tab.classList.add('active');
+          var pane = document.getElementById('pane-' + tab.dataset.tab);
+          if (pane) pane.classList.add('active');
+        });
+      });
+
+      /* ── Bottom bar expand/collapse ── */
+      var bottomEl     = document.getElementById('tv-bottom');
+      var toggleBtn    = document.getElementById('bottom-toggle-btn');
+      var toggleSpan   = toggleBtn ? toggleBtn.querySelector('span') : null;
+
+      function setExpanded(expanded) {
+        bottomEl.classList.toggle('expanded', expanded);
+        if (toggleSpan) toggleSpan.textContent = expanded ? 'Collapse' : 'Expand';
+      }
+
+      if (toggleBtn) {
+        toggleBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          setExpanded(!bottomEl.classList.contains('expanded'));
+        });
+      }
+
+      /* ── Theme toggle ── */
+      var themeToggleBtn = document.getElementById('theme-toggle-btn');
+      var themeIcon = document.getElementById('theme-icon');
+      
+      function toggleTheme() {
+        document.body.classList.toggle('light-mode');
+        var isLight = document.body.classList.contains('light-mode');
+        
+        // Update icon
+        if (isLight) {
+          themeIcon.innerHTML = '<path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 13a6 6 0 1 1 0-12 6 6 0 0 1 0 12z"/><path d="M8 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm0 7a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/>';
+        } else {
+          themeIcon.innerHTML = '<path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 13a6 6 0 1 1 0-12 6 6 0 0 1 0 12z"/>';
+        }
+        
+        // Re-render chart with new colors
+        if (window.chartState && window.chartState.instance && window.chartState.instance.setStyles) {
+          window.chartState.instance.setStyles(window.getKLineStyles());
+        }
+        
+        // Save preference
+        localStorage.setItem('theme', isLight ? 'light' : 'dark');
+      }
+      
+      if (themeToggleBtn) {
+        themeToggleBtn.addEventListener('click', toggleTheme);
+      }
+      
+      // Load saved theme preference
+      var savedTheme = localStorage.getItem('theme');
+      if (savedTheme === 'light') {
+        document.body.classList.add('light-mode');
+        if (themeIcon) {
+          themeIcon.innerHTML = '<path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 13a6 6 0 1 1 0-12 6 6 0 0 1 0 12z"/><path d="M8 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm0 7a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/>';
+        }
+      }
+
+      /* ── Bottom tabs ── */
+      document.querySelectorAll('.bottom-tab').forEach(function(tab) {
+        tab.addEventListener('click', function(e) {
+          e.stopPropagation();
+          document.querySelectorAll('.bottom-tab').forEach(function(t) { t.classList.remove('active'); });
+          document.querySelectorAll('.bottom-pane').forEach(function(p) { p.classList.remove('active'); });
+          tab.classList.add('active');
+          var pane = document.getElementById('bottom-pane-' + tab.dataset.bottomTab);
+          if (pane) pane.classList.add('active');
+          setExpanded(true);
+        });
+      });
+
+    })();
+    </script>
+
     <script src="/vendor/klinecharts/klinecharts.min.js"></script>
-    <script src="/trading-terminal.js"></script>
+    <script src="/trading-terminal.js?v=<%= Date.now() %>"></script>
   </body>
 </html>

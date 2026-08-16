@@ -61,63 +61,51 @@ class NewsAnalyzer {
       // Convert symbol to news-friendly format
       const searchTerms = this.getNewsSearchTerms(symbol);
       
-      // Fetch recent news (last 24 hours)
+      // Fetch recent news (last 7 days to cover weekends and quiet sessions)
       const response = await axios.get(`https://newsapi.org/v2/everything`, {
         params: {
           q: searchTerms.join(' OR '),
           language: 'en',
           sortBy: 'publishedAt',
-          from: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+          from: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
           to: new Date().toISOString(),
-          pageSize: 10,
+          pageSize: 15,
           apiKey: this.newsApiKey
         },
-        timeout: 5000 // Reduced timeout
+        timeout: 8000
       });
 
-      if (response.status === 401) {
-        console.warn(`News API authentication failed for ${symbol}. Check API key.`);
-        return this.getDefaultNewsAnalysis(symbol);
+      const news = response.data?.articles || [];
+      if (news.length > 0) {
+        const analysis = this.analyzeNewsImpact(news, symbol);
+        this.cache.set(`${cacheKey}-${now}`, { data: analysis, timestamp: now });
+        this.cleanCache();
+        return analysis;
       }
 
-      const news = response.data.articles || [];
-      const analysis = this.analyzeNewsImpact(news, symbol);
-      
-      // Cache the result
-      this.cache.set(`${cacheKey}-${now}`, {
-        data: analysis,
-        timestamp: now
-      });
-      
-      // Clean old cache entries
-      this.cleanCache();
-      
-      return analysis;
+      // If NewsAPI returned 0 articles, fallback to MultiSource RSS feeds
+      const { MultiSourceNewsAggregator } = require("./multiSourceNews");
+      const rssAggregator = new MultiSourceNewsAggregator();
+      const rssResult = await rssAggregator.aggregateNews(symbol, timeframe);
+
+      if (rssResult && rssResult.totalArticles > 0) {
+        this.cache.set(`${cacheKey}-${now}`, { data: rssResult, timestamp: now });
+        return rssResult;
+      }
+
+      return this.getDefaultNewsAnalysis(symbol);
       
     } catch (error) {
-      if (error.response?.status === 401) {
-        console.warn(`News API authentication failed for ${symbol}: Invalid API key`);
-      } else if (error.response?.status === 429) {
-        console.warn(`News API rate limit exceeded for ${symbol}. Using cached data if available.`);
-        // Return cached data if available, otherwise default
-        for (const [key, value] of this.cache.entries()) {
-          if (key.startsWith(cacheKey)) {
-            return value.data;
-          }
+      // Fallback to RSS aggregator on error
+      try {
+        const { MultiSourceNewsAggregator } = require("./multiSourceNews");
+        const rssAggregator = new MultiSourceNewsAggregator();
+        const rssResult = await rssAggregator.aggregateNews(symbol, timeframe);
+        if (rssResult && rssResult.totalArticles > 0) {
+          return rssResult;
         }
-        return this.getDefaultNewsAnalysis(symbol);
-      } else if (error.code === 'ECONNABORTED') {
-        console.warn(`News API timeout for ${symbol}. Using cached data if available.`);
-        // Return cached data on timeout
-        for (const [key, value] of this.cache.entries()) {
-          if (key.startsWith(cacheKey)) {
-            return value.data;
-          }
-        }
-        return this.getDefaultNewsAnalysis(symbol);
-      } else {
-        console.warn(`News fetch failed for ${symbol}:`, error.message);
-      }
+      } catch (_rssErr) {}
+
       return this.getDefaultNewsAnalysis(symbol);
     }
   }
@@ -132,17 +120,82 @@ class NewsAnalyzer {
   }
 
   getNewsSearchTerms(symbol) {
-    const symbolMap = {
-      'EURUSD': ['EUR', 'Euro', 'USD', 'Dollar', 'Eurozone', 'ECB', 'Federal Reserve'],
-      'GBPUSD': ['GBP', 'Pound', 'Sterling', 'USD', 'Dollar', 'Bank of England', 'Fed'],
-      'USDJPY': ['USD', 'Dollar', 'JPY', 'Yen', 'Federal Reserve', 'Bank of Japan'],
-      'BTCUSD': ['Bitcoin', 'BTC', 'Cryptocurrency', 'Crypto', 'Bitcoin ETF', 'SEC'],
-      'ETHUSD': ['Ethereum', 'ETH', 'Cryptocurrency', 'Crypto', 'Ethereum ETF'],
-      'SPY': ['S&P 500', 'Stock Market', 'Federal Reserve', 'Inflation', 'GDP'],
-      'QQQ': ['NASDAQ', 'Tech Stocks', 'Federal Reserve', 'Inflation', 'Technology']
-    };
-
-    return symbolMap[symbol] || [symbol, 'market', 'trading', 'finance'];
+    const cleanSymbol = String(symbol || "").trim().toUpperCase();
+    
+    // Base global macro terms that affect all financial instruments generally
+    const baseMacroTerms = ['Fed', 'inflation', 'interest rates', 'GDP', 'CPI', 'macro', 'yields', 'geopolitical'];
+    
+    // 1. Precious Metals & Commodities (Gold, Silver, Oil)
+    if (cleanSymbol.includes('XAU') || cleanSymbol.includes('GOLD') || cleanSymbol === 'GC=F') {
+      return ['Gold', 'XAU', 'precious metals', 'DXY', 'safe haven', 'commodities', ...baseMacroTerms];
+    }
+    if (cleanSymbol.includes('XAG') || cleanSymbol.includes('SILVER') || cleanSymbol === 'SI=F') {
+      return ['Silver', 'XAG', 'precious metals', 'commodities', 'safe haven', ...baseMacroTerms];
+    }
+    if (cleanSymbol.includes('OIL') || cleanSymbol.includes('CRUDE') || cleanSymbol === 'CL=F' || cleanSymbol === 'USOIL') {
+      return ['Oil', 'Crude', 'WTI', 'Brent', 'OPEC', 'energy', 'commodities', ...baseMacroTerms];
+    }
+    
+    // 2. Cryptocurrencies
+    if (cleanSymbol.includes('BTC') || cleanSymbol.includes('BITCOIN') || 
+        cleanSymbol.includes('ETH') || cleanSymbol.includes('ETHEREUM') ||
+        cleanSymbol.includes('SOL') || cleanSymbol.includes('DOGE') ||
+        cleanSymbol.includes('XRP') || cleanSymbol.includes('ADA') ||
+        ['CRYPTO', 'CRYPTOCURRENCY'].some(t => cleanSymbol.includes(t))) {
+      
+      const specific = [];
+      if (cleanSymbol.includes('BTC') || cleanSymbol.includes('BITCOIN')) {
+        specific.push('Bitcoin', 'BTC', 'satoshi');
+      } else if (cleanSymbol.includes('ETH') || cleanSymbol.includes('ETHEREUM')) {
+        specific.push('Ethereum', 'ETH', 'Vitalik');
+      } else {
+        specific.push('crypto', 'cryptocurrency', 'digital assets');
+      }
+      return [...specific, 'SEC', 'crypto regulation', 'Bitcoin ETF', 'stablecoin', ...baseMacroTerms];
+    }
+    
+    // 3. Stock Indices & Equities (SPX, NAS100, DJI, Apple, etc.)
+    if (['SPX', 'SPY', 'NAS', 'NDX', 'DJI', 'US30', 'AAPL', 'AMZN', 'MSFT', 'NVDA', 'TSLA', 'META'].some(t => cleanSymbol.includes(t)) || cleanSymbol.length <= 4) {
+      const specific = [];
+      if (cleanSymbol.includes('AAPL')) specific.push('Apple', 'AAPL');
+      else if (cleanSymbol.includes('AMZN')) specific.push('Amazon', 'AMZN');
+      else if (cleanSymbol.includes('MSFT')) specific.push('Microsoft', 'MSFT');
+      else if (cleanSymbol.includes('NVDA')) specific.push('Nvidia', 'NVDA');
+      else if (cleanSymbol.includes('TSLA')) specific.push('Tesla', 'TSLA');
+      else if (cleanSymbol.includes('META')) specific.push('Meta', 'FB');
+      else specific.push('S&P 500', 'Nasdaq', 'Dow Jones', 'stock market', 'Wall Street', 'equities');
+      
+      return [...specific, 'earnings', 'Federal Reserve', 'growth', ...baseMacroTerms];
+    }
+    
+    // 4. Forex Pairs (e.g. EURUSD, GBPJPY, AUDNZD)
+    if (/^[A-Z]{6}$/.test(cleanSymbol)) {
+      const base = cleanSymbol.substring(0, 3);
+      const quote = cleanSymbol.substring(3, 6);
+      
+      const currencyNames = {
+        'EUR': ['EUR', 'Euro', 'Eurozone', 'ECB', 'Lagarde'],
+        'USD': ['USD', 'Dollar', 'Federal Reserve', 'Fed', 'DXY', 'Powell'],
+        'GBP': ['GBP', 'Pound', 'Sterling', 'Bank of England', 'BoE', 'Bailey'],
+        'JPY': ['JPY', 'Yen', 'Bank of Japan', 'BoJ', 'Ueda'],
+        'AUD': ['AUD', 'Aussie', 'Reserve Bank of Australia', 'RBA'],
+        'NZD': ['NZD', 'Kiwi', 'Reserve Bank of New Zealand', 'RBNZ'],
+        'CAD': ['CAD', 'Loonie', 'Bank of Canada', 'BoC'],
+        'CHF': ['CHF', 'Swiss Franc', 'Swiss National Bank', 'SNB']
+      };
+      
+      const terms = [];
+      if (currencyNames[base]) terms.push(...currencyNames[base]);
+      else terms.push(base);
+      
+      if (currencyNames[quote]) terms.push(...currencyNames[quote]);
+      else terms.push(quote);
+      
+      return [...terms, 'forex', 'exchange rate', ...baseMacroTerms];
+    }
+    
+    // Default fallback: search symbol plus base global macro terms
+    return [symbol, 'market', ...baseMacroTerms];
   }
 
   analyzeNewsImpact(articles, symbol) {
@@ -158,6 +211,7 @@ class NewsAnalyzer {
       impact: 'neutral',
       timeframe: '24h',
       summary: '',
+      articleSummaries: this.generateArticleSummaries(articles),
       sources: [...new Set(articles.map(a => a.source?.name).filter(Boolean))],
       lastUpdated: new Date().toISOString()
     };
@@ -286,6 +340,48 @@ class NewsAnalyzer {
     }
     
     return summary;
+  }
+
+  generateArticleSummaries(articles) {
+    // Generate quick summaries for top 5 most relevant articles
+    const topArticles = articles.slice(0, 5);
+    return topArticles.map(article => {
+      const title = article.title || 'No title';
+      const description = article.description || '';
+      const source = article.source?.name || 'Unknown';
+      const publishedAt = article.publishedAt ? new Date(article.publishedAt).toLocaleDateString() : 'Recent';
+      
+      // Create a concise summary combining title and key description points
+      let summary = title;
+      if (description && description.length > 50) {
+        // Take first meaningful sentence from description
+        const firstSentence = description.split(/[.!?]/)[0];
+        if (firstSentence && firstSentence.length > 20) {
+          summary += `. ${firstSentence.substring(0, 120)}${firstSentence.length > 120 ? '...' : ''}`;
+        }
+      }
+      
+      return {
+        summary: summary,
+        source: source,
+        publishedAt: publishedAt,
+        url: article.url || null,
+        sentiment: this.classifyArticleSentiment(title + ' ' + description)
+      };
+    });
+  }
+
+  classifyArticleSentiment(text) {
+    const positiveWords = ['bullish', 'positive', 'growth', 'rise', 'increase', 'gain', 'strong', 'rally', 'surge', 'boom', 'recovery', 'beat', 'exceed', 'profit'];
+    const negativeWords = ['bearish', 'negative', 'decline', 'fall', 'decrease', 'loss', 'weak', 'crash', 'slump', 'recession', 'crisis', 'miss', 'below', 'concern', 'risk'];
+    
+    const content = text.toLowerCase();
+    const positiveCount = positiveWords.reduce((count, word) => count + (content.split(word).length - 1), 0);
+    const negativeCount = negativeWords.reduce((count, word) => count + (content.split(word).length - 1), 0);
+    
+    if (positiveCount > negativeCount) return 'positive';
+    if (negativeCount > positiveCount) return 'negative';
+    return 'neutral';
   }
 
   getDefaultNewsAnalysis(symbol) {

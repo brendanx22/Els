@@ -69,6 +69,76 @@
   const tvChartContainer = document.getElementById("tv-chart-container");
   const tvChartWidget = document.getElementById("tv-chart-widget");
 
+  // News Analysis elements
+  const newsSentimentValue = document.getElementById("news-sentiment-value");
+  const newsImpactValue = document.getElementById("news-impact-value");
+  const newsArticlesValue = document.getElementById("news-articles-value");
+  const newsEventsValue = document.getElementById("news-events-value");
+  const newsSummaryValue = document.getElementById("news-summary-value");
+
+  // Historical Movements elements
+  const movementChangeValue = document.getElementById("movement-change-value");
+  const movementVolatilityValue = document.getElementById("movement-volatility-value");
+  const movementMomentumValue = document.getElementById("movement-momentum-value");
+  const movementTrendValue = document.getElementById("movement-trend-value");
+  const movementPatternsValue = document.getElementById("movement-patterns-value");
+  const movementSupportValue = document.getElementById("movement-support-value");
+  const movementResistanceValue = document.getElementById("movement-resistance-value");
+  const movementVolumeValue = document.getElementById("movement-volume-value");
+
+  // Advanced Patterns elements
+  const patternCandlestickValue = document.getElementById("pattern-candlestick-value");
+  const patternChartValue = document.getElementById("pattern-chart-value");
+  const patternHarmonicValue = document.getElementById("pattern-harmonic-value");
+  const patternSmcValue = document.getElementById("pattern-smc-value");
+  const patternList = document.getElementById("pattern-list");
+
+  // Predictive Analytics elements
+  const prediction1hValue = document.getElementById("prediction-1h-value");
+  const prediction4hValue = document.getElementById("prediction-4h-value");
+  const predictionVolValue = document.getElementById("prediction-vol-value");
+  const predictionConfidenceValue = document.getElementById("prediction-confidence-value");
+  const probBullishValue = document.getElementById("prob-bullish-value");
+  const probBearishValue = document.getElementById("prob-bearish-value");
+  const probSidewaysValue = document.getElementById("prob-sideways-value");
+  const probBullishFill = document.getElementById("prob-bullish");
+  const probBearishFill = document.getElementById("prob-bearish");
+  const probSidewaysFill = document.getElementById("prob-sideways");
+
+  // Multi-Timeframe elements
+  const mtfScoreValue = document.getElementById("mtf-score-value");
+  const mtfDirectionValue = document.getElementById("mtf-direction-value");
+  const mtfStrengthValue = document.getElementById("mtf-strength-value");
+  const mtfAlignmentValue = document.getElementById("mtf-alignment-value");
+  const mtfDivergencesValue = document.getElementById("mtf-divergences-value");
+
+  // Trading Signal elements
+  const signalPanel = document.getElementById("signal-panel");
+  const signalDirection = document.getElementById("signal-direction");
+  const signalConfidence = document.getElementById("signal-confidence");
+  const signalEntryValue = document.getElementById("signal-entry-value");
+  const signalStopValue = document.getElementById("signal-stop-value");
+  const signalTarget1Value = document.getElementById("signal-target1-value");
+  const signalRrValue = document.getElementById("signal-rr-value");
+  const signalCatalyst = document.getElementById("signal-catalyst");
+
+  // Alerts elements
+  const alertsContainer = document.getElementById("alerts-container");
+
+  // WebSocket elements
+  const wsStatusValue = document.getElementById("ws-status-value");
+  const wsLatencyValue = document.getElementById("ws-latency-value");
+  const wsUpdatesValue = document.getElementById("ws-updates-value");
+  const wsAlertsValue = document.getElementById("ws-alerts-value");
+
+  // Feature indicators
+  const featureNews = document.getElementById("feature-news");
+  const featurePatterns = document.getElementById("feature-patterns");
+  const featurePredictive = document.getElementById("feature-predictive");
+  const featureMtf = document.getElementById("feature-mtf");
+  const featureAlerts = document.getElementById("feature-alerts");
+  const featureWs = document.getElementById("feature-ws");
+
   const CHART_MODE_ANNOTATED = "annotated";
   const CHART_MODE_TRADINGVIEW = "tradingview";
   let chartMode = (() => {
@@ -90,6 +160,518 @@
     renderQueued: false,
     viewport: null,
   };
+
+  // WebSocket Client for real-time updates
+  const wsState = {
+    socket: null,
+    connected: false,
+    reconnectAttempts: 0,
+    maxReconnectAttempts: 5,
+    reconnectDelay: 3000,
+    updateCount: 0,
+    alertCount: 0,
+    lastPingTime: 0,
+    latency: 0,
+    pingInterval: null
+  };
+
+  // Initialize WebSocket connection
+  function initWebSocket() {
+    const wsUrl = `ws://${window.location.hostname}:3003`;
+    
+    try {
+      wsState.socket = new WebSocket(wsUrl);
+      
+      wsState.socket.onopen = () => {
+        console.log("🔌 WebSocket connected");
+        wsState.connected = true;
+        wsState.reconnectAttempts = 0;
+        updateWsStatus("connected");
+        
+        // Start client-side pings for accurate latency
+        if (wsState.pingInterval) clearInterval(wsState.pingInterval);
+        wsState.pingInterval = setInterval(() => {
+          if (wsState.socket && wsState.connected) {
+            wsState.lastPingTime = Date.now();
+            wsState.socket.send(JSON.stringify({ type: "ping" }));
+          }
+        }, 3000);
+        
+        // Subscribe to current symbol if available
+        const symbol = sessionSymbol?.textContent;
+        if (symbol && symbol !== "--") {
+          subscribeToSymbol(symbol);
+        }
+      };
+      
+      wsState.socket.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+        handleWebSocketMessage(message);
+      };
+      
+      wsState.socket.onclose = () => {
+        console.log("🔌 WebSocket disconnected");
+        wsState.connected = false;
+        updateWsStatus("disconnected");
+        
+        // Clear ping interval
+        if (wsState.pingInterval) {
+          clearInterval(wsState.pingInterval);
+          wsState.pingInterval = null;
+        }
+        
+        // Attempt reconnection
+        if (wsState.reconnectAttempts < wsState.maxReconnectAttempts) {
+          wsState.reconnectAttempts++;
+          setTimeout(initWebSocket, wsState.reconnectDelay);
+        }
+      };
+      
+      wsState.socket.onerror = (error) => {
+        console.error("WebSocket error:", error);
+        updateWsStatus("error");
+      };
+      
+    } catch (error) {
+      console.error("Failed to initialize WebSocket:", error);
+      updateWsStatus("error");
+    }
+  }
+
+  // Subscribe to symbol updates
+  function subscribeToSymbol(symbol) {
+    if (wsState.socket && wsState.connected) {
+      wsState.socket.send(JSON.stringify({
+        type: "subscribe",
+        symbol: symbol,
+        channels: ["price", "news", "alerts"]
+      }));
+    }
+  }
+
+  // Handle WebSocket messages
+  function handleWebSocketMessage(message) {
+    switch (message.type) {
+      case "connection":
+        console.log("WebSocket connection confirmed:", message.status);
+        break;
+        
+      case "market-update":
+        wsState.updateCount++;
+        if (wsUpdatesValue) wsUpdatesValue.textContent = wsState.updateCount;
+        break;
+        
+      case "news-update":
+        updateNewsDisplay(message.data);
+        break;
+        
+      case "alert":
+        wsState.alertCount++;
+        if (wsAlertsValue) wsAlertsValue.textContent = wsState.alertCount;
+        addAlertToDashboard(message.alert);
+        break;
+        
+      case "pattern-detected":
+        updatePatternDisplay(message.data);
+        break;
+        
+      case "ping":
+        wsState.lastPingTime = Date.now();
+        if (wsState.socket) {
+          wsState.socket.send(JSON.stringify({ type: "pong" }));
+        }
+        break;
+        
+      case "pong":
+        const latency = Date.now() - wsState.lastPingTime;
+        wsState.latency = latency;
+        if (wsLatencyValue) wsLatencyValue.textContent = `${latency}ms`;
+        break;
+    }
+  }
+
+  // Update WebSocket status display
+  function updateWsStatus(status) {
+    if (!wsStatusValue) return;
+    
+    wsStatusValue.className = "";
+    wsStatusValue.classList.add(status);
+    
+    switch (status) {
+      case "connected":
+        wsStatusValue.textContent = "Connected";
+        wsStatusValue.style.color = "var(--green)";
+        if (featureWs) featureWs.classList.add("active");
+        break;
+      case "connecting":
+        wsStatusValue.textContent = "Connecting...";
+        wsStatusValue.style.color = "var(--gold)";
+        break;
+      case "disconnected":
+        wsStatusValue.textContent = "Disconnected";
+        wsStatusValue.style.color = "var(--red)";
+        if (featureWs) featureWs.classList.remove("active");
+        break;
+      case "error":
+        wsStatusValue.textContent = "Error";
+        wsStatusValue.style.color = "var(--red)";
+        if (featureWs) featureWs.classList.remove("active");
+        break;
+    }
+  }
+
+  // Add alert to dashboard
+  function addAlertToDashboard(alert) {
+    if (!alertsContainer) return;
+    
+    // Remove "No alerts yet" message
+    const emptyMessage = alertsContainer.querySelector(".thesis-copy");
+    if (emptyMessage) {
+      emptyMessage.remove();
+    }
+    
+    const alertItem = document.createElement("div");
+    alertItem.className = `alert-item ${alert.priority}-priority new`;
+    alertItem.innerHTML = `
+      <span class="alert-icon">${getAlertIcon(alert.type)}</span>
+      <div class="alert-content">
+        <div class="alert-title">${escapeHtml(alert.title)}</div>
+        <div class="alert-message">${escapeHtml(alert.message)}</div>
+      </div>
+      <span class="alert-time">${new Date(alert.timestamp).toLocaleTimeString()}</span>
+    `;
+    
+    alertsContainer.insertBefore(alertItem, alertsContainer.firstChild);
+    
+    // Keep only last 10 alerts
+    while (alertsContainer.children.length > 10) {
+      alertsContainer.removeChild(alertsContainer.lastChild);
+    }
+    
+    // Remove animation class after animation completes
+    setTimeout(() => {
+      alertItem.classList.remove("new");
+    }, 300);
+  }
+
+  // Get alert icon based on type
+  function getAlertIcon(type) {
+    const icons = {
+      "breaking_news": "🚨",
+      "sentiment_shift": "📊",
+      "key_event": "🔔",
+      "high_impact": "⚠️",
+      "entity_mention": "🏛️",
+      "price_movement": "📈",
+      "high_volatility": "⚡",
+      "pattern_complete": "🎯",
+      "breakout": "🚀"
+    };
+    return icons[type] || "📢";
+  }
+
+  // Update news display
+  function updateNewsDisplay(newsData) {
+    if (!newsData) return;
+    
+    if (newsSentimentValue && newsData.sentiment) {
+      newsSentimentValue.textContent = newsData.sentiment.overall || "--";
+    }
+    if (newsImpactValue && newsData.impact) {
+      newsImpactValue.textContent = newsData.impact.level || newsData.impact || "--";
+    }
+    if (featureNews) featureNews.classList.add("active");
+    
+    // Display article summaries if available
+    if (newsSummaryValue && newsData.articleSummaries && newsData.articleSummaries.length > 0) {
+      const summariesHtml = newsData.articleSummaries.map(article => `
+        <div style="margin-bottom: 12px; padding: 8px; background: rgba(255,255,255,0.03); border-left: 2px solid ${article.sentiment === 'positive' ? '#4caf50' : article.sentiment === 'negative' ? '#f44336' : '#9e9e9e'}; border-radius: 2px;">
+          <div style="font-size: 11px; font-weight: 600; color: var(--ink-bright); margin-bottom: 4px;">${article.summary}</div>
+          <div style="font-size: 9px; color: var(--ink-dim); display: flex; gap: 8px;">
+            <span>${article.source}</span>
+            <span>${article.publishedAt}</span>
+            <span style="color: ${article.sentiment === 'positive' ? '#4caf50' : article.sentiment === 'negative' ? '#f44336' : '#9e9e9e'}">${article.sentiment}</span>
+          </div>
+        </div>
+      `).join('');
+      newsSummaryValue.innerHTML = summariesHtml;
+    } else if (newsSummaryValue) {
+      newsSummaryValue.textContent = newsData.summary || "No news data available.";
+    }
+  }
+
+  // Update pattern display
+  function updatePatternDisplay(patternData) {
+    if (!patternData || !patternList) return;
+    
+    patternList.innerHTML = "";
+    
+    const patterns = [
+      ...(patternData.candlestick || []).map(p => ({ ...p, name: p.name || 'Candlestick Pattern' })),
+      ...(patternData.chart || []).map(p => ({ ...p, name: p.name || 'Chart Pattern' })),
+      ...(patternData.smartMoney || []).map(p => ({ ...p, name: p.name || 'SMC Concept' })),
+      ...(patternData.divergences || []).map(p => ({ ...p, name: p.name || 'Divergence' })),
+      ...(patternData.harmonic || []).map(p => ({ ...p, name: p.name || 'Harmonic Pattern' })),
+      ...(patternData.wyckoff || []).map(p => ({ ...p, name: p.name || 'Wyckoff Phase' })),
+      ...(patternData.elliott || []).map(p => ({ ...p, name: p.name || 'Elliott Wave' }))
+    ].slice(0, 10);
+    
+    if (patterns.length === 0) {
+      patternList.innerHTML = "<p class='thesis-copy'>No patterns detected.</p>";
+      return;
+    }
+    
+    patterns.forEach(pattern => {
+      const item = document.createElement("div");
+      item.className = "pattern-item";
+      item.innerHTML = `
+        <span class="pattern-name">${escapeHtml(pattern.name)}</span>
+        <span class="pattern-signal ${pattern.signal}">${pattern.signal}</span>
+      `;
+      patternList.appendChild(item);
+    });
+    
+    const patternCandlestickValue = document.getElementById("pattern-candlestick-value");
+    const patternChartValue = document.getElementById("pattern-chart-value");
+    const patternHarmonicValue = document.getElementById("pattern-harmonic-value");
+    const patternSmcValue = document.getElementById("pattern-smc-value");
+
+    if (patternCandlestickValue) {
+      const candleCount = (patternData.candlestick || []).length;
+      patternCandlestickValue.textContent = candleCount > 0 ? `${candleCount} found` : "--";
+    }
+    
+    if (patternChartValue) {
+      const chartCount = (patternData.chart || []).length;
+      patternChartValue.textContent = chartCount > 0 ? `${chartCount} found` : "--";
+    }
+    
+    if (patternHarmonicValue) {
+      const harmonicCount = (patternData.harmonic || []).length;
+      patternHarmonicValue.textContent = harmonicCount > 0 ? `${harmonicCount} found` : "--";
+    }
+    
+    if (patternSmcValue) {
+      const smcCount = (patternData.smartMoney || []).length;
+      patternSmcValue.textContent = smcCount > 0 ? `${smcCount} found` : "--";
+    }
+    
+    if (featurePatterns) featurePatterns.classList.add("active");
+  }
+
+  // Update enhanced dashboard data
+  function updateEnhancedDashboard(payload) {
+    if (!payload) return;
+    
+    const analysis = payload.analysis || {};
+    
+    // Update patterns
+    if (analysis.advancedPatterns) {
+      updatePatternDisplay(analysis.advancedPatterns);
+    }
+    
+    // Update predictive analytics
+    if (analysis.predictive) {
+      updatePredictiveDisplay(analysis.predictive);
+    }
+    
+    // Update MTF analysis
+    if (analysis.mtf) {
+      updateMtfDisplay(analysis.mtf);
+    }
+    
+    // Update signals
+    if (payload.signal && payload.signal.signal === "active") {
+      updateSignalDisplay(payload.signal);
+    } else if (signalPanel) {
+      signalPanel.hidden = true;
+    }
+  }
+
+  // Update predictive display
+  function updatePredictiveDisplay(predictive) {
+    if (!predictive) return;
+    
+    if (prediction1hValue && predictive.price?.predictions?.next1h) {
+      prediction1hValue.textContent = formatPrice(predictive.price.predictions.next1h.target);
+    }
+    
+    if (prediction4hValue && predictive.price?.predictions?.next4h) {
+      prediction4hValue.textContent = formatPrice(predictive.price.predictions.next4h.target);
+    }
+    
+    if (predictionVolValue && predictive.volatility) {
+      predictionVolValue.textContent = predictive.volatility.regime || "--";
+    }
+    
+    if (predictionConfidenceValue) {
+      const conf = Math.round((predictive.confidence || 0) * 100);
+      predictionConfidenceValue.textContent = `${conf}%`;
+    }
+    
+    // Update probability bars
+    if (predictive.probabilities) {
+      const probs = predictive.probabilities;
+      
+      if (probBullishValue && probBullishFill) {
+        probBullishValue.textContent = `${Math.round(probs.bullish || 0)}%`;
+        probBullishFill.style.setProperty("--fill-percent", `${probs.bullish || 0}%`);
+      }
+      
+      if (probBearishValue && probBearishFill) {
+        probBearishValue.textContent = `${Math.round(probs.bearish || 0)}%`;
+        probBearishFill.style.setProperty("--fill-percent", `${probs.bearish || 0}%`);
+      }
+      
+      if (probSidewaysValue && probSidewaysFill) {
+        probSidewaysValue.textContent = `${Math.round(probs.sideways || 0)}%`;
+        probSidewaysFill.style.setProperty("--fill-percent", `${probs.sideways || 0}%`);
+      }
+    }
+    
+    if (featurePredictive) featurePredictive.classList.add("active");
+  }
+
+  // Update MTF display
+  function updateMtfDisplay(mtf) {
+    if (!mtf) return;
+    
+    if (mtfScoreValue && mtf.confluenceScore) {
+      mtfScoreValue.textContent = `${mtf.confluenceScore.score || 0}/100`;
+    }
+    
+    if (mtfDirectionValue && mtf.confluenceScore) {
+      mtfDirectionValue.textContent = mtf.confluenceScore.direction || "--";
+    }
+    
+    if (mtfStrengthValue && mtf.confluenceScore) {
+      mtfStrengthValue.textContent = mtf.confluenceScore.strength || "--";
+    }
+    
+    if (mtfAlignmentValue && mtf.hierarchy) {
+      mtfAlignmentValue.textContent = mtf.hierarchy.alignment || "--";
+    }
+    
+    if (mtfDivergencesValue) {
+      const divCount = (mtf.divergences || []).length;
+      mtfDivergencesValue.textContent = divCount > 0 ? `${divCount} found` : "None";
+    }
+    
+    if (featureMtf) featureMtf.classList.add("active");
+  }
+
+  // Draw sentiment timeline
+  function drawSentimentTimeline(sentimentData) {
+    const canvas = document.getElementById('sentiment-canvas');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    const container = document.getElementById('sentiment-timeline-chart');
+    if (!container) return;
+    
+    canvas.width = container.clientWidth;
+    canvas.height = container.clientHeight;
+    
+    // Draw background
+    ctx.fillStyle = '#141b24';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw grid lines
+    ctx.strokeStyle = '#252b36';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 5; i++) {
+      const y = (canvas.height / 5) * i;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(canvas.width, y);
+      ctx.stroke();
+    }
+    
+    // Generate dummy sentiment data if none provided
+    const data = sentimentData || [
+      { time: Date.now() - 3600000 * 5, sentiment: 50 },
+      { time: Date.now() - 3600000 * 4, sentiment: 45 },
+      { time: Date.now() - 3600000 * 3, sentiment: 60 },
+      { time: Date.now() - 3600000 * 2, sentiment: 70 },
+      { time: Date.now() - 3600000, sentiment: 65 },
+      { time: Date.now(), sentiment: 75 }
+    ];
+    
+    if (data.length < 2) return;
+    
+    // Draw the line
+    ctx.beginPath();
+    ctx.strokeStyle = '#10b981';
+    ctx.lineWidth = 2;
+    
+    const minTime = data[0].time;
+    const maxTime = data[data.length - 1].time;
+    const timeRange = maxTime - minTime || 1;
+    
+    data.forEach((point, index) => {
+      const x = ((point.time - minTime) / timeRange) * (canvas.width - 20) + 10;
+      const y = canvas.height - ((point.sentiment / 100) * (canvas.height - 20) + 10);
+      
+      if (index === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    });
+    ctx.stroke();
+    
+    // Draw points
+    ctx.fillStyle = '#10b981';
+    data.forEach((point) => {
+      const x = ((point.time - minTime) / timeRange) * (canvas.width - 20) + 10;
+      const y = canvas.height - ((point.sentiment / 100) * (canvas.height - 20) + 10);
+      
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  // Update signal display
+  function updateSignalDisplay(signal) {
+    if (!signal || !signalPanel) return;
+    
+    signalPanel.hidden = false;
+    
+    if (signalDirection) {
+      signalDirection.textContent = signal.direction?.toUpperCase() || "--";
+      signalDirection.className = `signal-direction ${signal.direction}`;
+    }
+    
+    if (signalConfidence) {
+      signalConfidence.textContent = `${signal.confidence || 0}%`;
+    }
+    
+    if (signalEntryValue) {
+      signalEntryValue.textContent = formatPrice(signal.entry);
+    }
+    
+    if (signalStopValue) {
+      signalStopValue.textContent = formatPrice(signal.stopLoss);
+    }
+    
+    if (signalTarget1Value) {
+      signalTarget1Value.textContent = formatPrice(signal.target1);
+    }
+    
+    if (signalRrValue) {
+      signalRrValue.textContent = signal.riskReward || "--";
+    }
+    
+    if (signalCatalyst) {
+      signalCatalyst.textContent = signal.catalyst || "--";
+    }
+    
+    if (featureAlerts) featureAlerts.classList.add("active");
+  }
+
+  // Initialize WebSocket on startup
+  initWebSocket();
 
   let renderedSnapshot = null;
   let renderedPayload = null;
@@ -666,6 +1248,26 @@
   }
 
   function syncPlotBounds() {
+    if (chartState.instance) {
+      try {
+        const apexGlobals = chartState.instance.w?.globals;
+        if (apexGlobals && apexGlobals.grid) {
+          const grid = apexGlobals.grid;
+          const padding = apexGlobals.padding;
+          
+          chartState.plotBounds = {
+            left: grid.left + (padding?.left || 0),
+            top: grid.top + (padding?.top || 0),
+            width: grid.width,
+            height: grid.height
+          };
+          return chartState.plotBounds;
+        }
+      } catch (_err) {
+        // Fall back to manual calculation
+      }
+    }
+
     const containerRect = chartContainer.getBoundingClientRect();
     if (!containerRect.width || !containerRect.height) {
       chartState.plotBounds = null;
@@ -774,7 +1376,7 @@
   function handleViewportEvent(xaxis) {
     if (!renderedPayload || !xaxis) return;
     chartState.viewport = normalizeViewport({ min: xaxis.min, max: xaxis.max }, renderedPayload);
-    const yRange = computeVisibleYRange(renderedPayload, chartState.viewport);
+    const yRange = getVisibleYRange(renderedPayload);
 
     if (!chartState.instance || chartState.applyingViewport) {
       syncPlotBounds();
@@ -1004,19 +1606,43 @@
   }
 
   function getKLineStyles() {
+    const isLightMode = document.body.classList.contains('light-mode');
+    
+    // Light mode chart colors
+    const lightModeColors = {
+      grid: "rgba(200, 200, 200, 0.3)",
+      crosshair: "rgba(100, 100, 100, 0.5)",
+      text: "#374151",
+      tooltipBg: "rgba(255, 255, 255, 0.95)",
+      tooltipBorder: "rgba(200, 200, 200, 0.8)",
+      tooltipText: "#1f2937"
+    };
+    
+    // Dark mode chart colors (default)
+    const darkModeColors = {
+      grid: "rgba(123, 134, 158, 0.14)",
+      crosshair: "rgba(88, 98, 115, 0.38)",
+      text: "#6b7280",
+      tooltipBg: "rgba(19, 23, 34, 0.92)",
+      tooltipBorder: "rgba(37, 43, 54, 0.95)",
+      tooltipText: "#d1d4dc"
+    };
+    
+    const colors = isLightMode ? lightModeColors : darkModeColors;
+    
     return {
       candle: {
         type: "candle_solid",
         bar: {
-          downBorderColor: "#787b86",
-          downColor: "#787b86",
-          downWickColor: "#787b86",
-          noChangeBorderColor: "#787b86",
-          noChangeColor: "#787b86",
-          noChangeWickColor: "#787b86",
-          upBorderColor: "#2962ff",
-          upColor: "#2962ff",
-          upWickColor: "#2962ff",
+          downBorderColor: "#ef5350",  // Red for bearish
+          downColor: "#ef5350",      // Red for bearish
+          downWickColor: "#ef5350",  // Red for bearish
+          noChangeBorderColor: "#9e9e9e",
+          noChangeColor: "#9e9e9e",
+          noChangeWickColor: "#9e9e9e",
+          upBorderColor: "#26a69a",    // Green for bullish
+          upColor: "#26a69a",        // Green for bullish
+          upWickColor: "#26a69a",    // Green for bullish
         },
         priceMark: {
           high: { show: false },
@@ -1055,13 +1681,13 @@
           offsetLeft: 12,
           offsetTop: 12,
           rect: {
-            backgroundColor: "rgba(19, 23, 34, 0.92)",
-            borderColor: "rgba(37, 43, 54, 0.95)",
+            backgroundColor: colors.tooltipBg,
+            borderColor: colors.tooltipBorder,
             borderDashedValue: [0, 0],
             borderRadius: 10,
             borderSize: 1,
             borderStyle: "solid",
-            color: "#d1d4dc",
+            color: colors.tooltipText,
             marginBottom: 0,
             marginLeft: 0,
             marginRight: 0,
@@ -1078,7 +1704,7 @@
           showRule: "none",
           showType: "rect",
           text: {
-            color: "#d1d4dc",
+            color: colors.tooltipText,
             family: "Trebuchet MS, Segoe UI, sans-serif",
             marginBottom: 0,
             marginLeft: 0,
@@ -1091,16 +1717,16 @@
       },
       crosshair: {
         horizontal: {
-          line: { color: "rgba(88, 98, 115, 0.38)", dashedValue: [4, 4], show: true, size: 1, style: "dashed" },
+          line: { color: colors.crosshair, dashedValue: [4, 4], show: true, size: 1, style: "dashed" },
           show: true,
           text: {
-            backgroundColor: "#131722",
-            borderColor: "#252b36",
+            backgroundColor: colors.tooltipBg,
+            borderColor: colors.tooltipBorder,
             borderDashedValue: [0, 0],
             borderRadius: 4,
             borderSize: 0,
             borderStyle: "solid",
-            color: "#ffffff",
+            color: colors.tooltipText,
             family: "Trebuchet MS, Segoe UI, sans-serif",
             paddingBottom: 2,
             paddingLeft: 6,
@@ -1135,16 +1761,39 @@
             weight: 600,
           },
         },
+        show: true,
+        vertical: {
+          line: { color: colors.crosshair, dashedValue: [4, 4], show: true, size: 1, style: "dashed" },
+          show: true,
+          text: {
+            backgroundColor: colors.tooltipBg,
+            borderColor: colors.tooltipBorder,
+            borderDashedValue: [0, 0],
+            borderRadius: 4,
+            borderSize: 0,
+            borderStyle: "solid",
+            color: colors.tooltipText,
+            family: "Trebuchet MS, Segoe UI, sans-serif",
+            paddingBottom: 2,
+            paddingLeft: 6,
+            paddingRight: 6,
+            paddingTop: 2,
+            show: true,
+            size: 11,
+            style: "fill",
+            weight: 600,
+          },
+        },
       },
       grid: {
-        horizontal: { color: "rgba(123, 134, 158, 0.14)", dashedValue: [0, 0], show: true, size: 1, style: "solid" },
+        horizontal: { color: colors.grid, dashedValue: [0, 0], show: true, size: 1, style: "solid" },
         show: true,
-        vertical: { color: "rgba(123, 134, 158, 0.14)", dashedValue: [0, 0], show: true, size: 1, style: "solid" },
+        vertical: { color: colors.grid, dashedValue: [0, 0], show: true, size: 1, style: "solid" },
       },
       overlay: {
-        arc: { color: "#111827", dashedValue: [0, 0], size: 1, style: "solid" },
-        circle: { borderColor: "#111827", borderDashedValue: [0, 0], borderSize: 1, borderStyle: "solid", color: "rgba(17,24,39,0.06)", style: "stroke_fill" },
-        line: { color: "#111827", dashedValue: [0, 0], size: 1.25, smooth: false, style: "solid" },
+        arc: { color: isLightMode ? "#374151" : "#111827", dashedValue: [0, 0], size: 1, style: "solid" },
+        circle: { borderColor: isLightMode ? "#374151" : "#111827", borderDashedValue: [0, 0], borderSize: 1, borderStyle: "solid", color: isLightMode ? "rgba(55, 65, 81, 0.04)" : "rgba(17,24,39,0.06)", style: "stroke_fill" },
+        line: { color: isLightMode ? "#374151" : "#111827", dashedValue: [0, 0], size: 1.25, smooth: false, style: "solid" },
         point: {
           activeBorderColor: "#2962ff",
           activeBorderSize: 1,
@@ -1155,8 +1804,8 @@
           color: "#ffffff",
           radius: 3,
         },
-        polygon: { borderColor: "#111827", borderDashedValue: [0, 0], borderSize: 1, borderStyle: "solid", color: "rgba(17,24,39,0.06)", style: "stroke_fill" },
-        rect: { borderColor: "#111827", borderDashedValue: [0, 0], borderRadius: 0, borderSize: 1, borderStyle: "solid", color: "rgba(17,24,39,0.06)", style: "stroke_fill" },
+        polygon: { borderColor: isLightMode ? "#374151" : "#111827", borderDashedValue: [0, 0], borderSize: 1, borderStyle: "solid", color: isLightMode ? "rgba(55, 65, 81, 0.04)" : "rgba(17,24,39,0.06)", style: "stroke_fill" },
+        rect: { borderColor: isLightMode ? "#374151" : "#111827", borderDashedValue: [0, 0], borderRadius: 0, borderSize: 1, borderStyle: "solid", color: isLightMode ? "rgba(55, 65, 81, 0.04)" : "rgba(17,24,39,0.06)", style: "stroke_fill" },
         text: {
           backgroundColor: "rgba(255,255,255,0.84)",
           borderColor: "rgba(148,163,184,0.22)",
@@ -1182,12 +1831,12 @@
         size: 1,
       },
       xAxis: {
-        axisLine: { color: "rgba(123, 134, 158, 0.18)", dashedValue: [0, 0], show: false, size: 1, style: "solid" },
+        axisLine: { color: colors.crosshair, dashedValue: [0, 0], show: false, size: 1, style: "solid" },
         show: true,
         size: 30,
-        tickLine: { color: "rgba(123, 134, 158, 0.18)", dashedValue: [0, 0], length: 0, show: false, size: 1, style: "solid" },
+        tickLine: { color: colors.crosshair, dashedValue: [0, 0], length: 0, show: false, size: 1, style: "solid" },
         tickText: {
-          color: "#6b7280",
+          color: colors.text,
           family: "Trebuchet MS, Segoe UI, sans-serif",
           marginEnd: 8,
           marginStart: 8,
@@ -1197,15 +1846,15 @@
         },
       },
       yAxis: {
-        axisLine: { color: "rgba(123, 134, 158, 0.18)", dashedValue: [0, 0], show: false, size: 1, style: "solid" },
+        axisLine: { color: colors.crosshair, dashedValue: [0, 0], show: false, size: 1, style: "solid" },
         inside: false,
         position: "right",
         reverse: false,
         show: true,
         size: 72,
-        tickLine: { color: "rgba(123, 134, 158, 0.18)", dashedValue: [0, 0], length: 0, show: false, size: 1, style: "solid" },
+        tickLine: { color: colors.crosshair, dashedValue: [0, 0], length: 0, show: false, size: 1, style: "solid" },
         tickText: {
-          color: "#6b7280",
+          color: colors.text,
           family: "Trebuchet MS, Segoe UI, sans-serif",
           marginEnd: 8,
           marginStart: 8,
@@ -1540,12 +2189,19 @@
     const chart = chartState.instance;
     chart.setStyles(getKLineStyles());
     chart.setPriceVolumePrecision(inferPricePrecision(payload), 0);
-    chart.clearData();
-    chart.applyNewData(buildKLineData(payload));
 
-    if (marketChanged) {
+    // Only do full rebuild when market actually changes
+    if (marketChanged || !chartState.lastMarketKey) {
+      chart.clearData();
+      chart.applyNewData(buildKLineData(payload));
       chart.scrollToRealTime(0);
       chartState.viewport = null;
+    } else {
+      // Incremental update for live ticks - preserves viewport
+      const klineData = buildKLineData(payload);
+      if (klineData.length > 0) {
+        chart.updateData(klineData[klineData.length - 1]);
+      }
     }
 
     chartState.lastMarketKey = widgetKey;
@@ -1659,6 +2315,10 @@
         timestamp: Number(time) * 1000,
         value: Number(renderedPayload.snapshot?.price || renderedPayload.candles?.[renderedPayload.candles.length - 1]?.close || 0),
       }, {});
+      const bounds = chartState.plotBounds || syncPlotBounds();
+      if (bounds && Number.isFinite(point?.x)) {
+        return Math.max(bounds.left, Math.min(bounds.left + bounds.width, Number(point.x)));
+      }
       return Number(point?.x);
     }
 
@@ -1675,7 +2335,8 @@
     }
 
     const normalized = Math.max(0, Math.min(1, (epochTime - min) / (max - min)));
-    return bounds.left + normalized * bounds.width;
+    const x = bounds.left + normalized * bounds.width;
+    return Math.max(bounds.left, Math.min(bounds.left + bounds.width, x));
   }
 
   function toYCoordinate(price) {
@@ -1685,13 +2346,17 @@
         timestamp: latestTime,
         value: Number(price),
       }, {});
+      const bounds = chartState.plotBounds || syncPlotBounds();
+      if (bounds && Number.isFinite(point?.y)) {
+        return Math.max(bounds.top, Math.min(bounds.top + bounds.height, Number(point.y)));
+      }
       return Number(point?.y);
     }
 
     const bounds = chartState.plotBounds || syncPlotBounds();
     if (!bounds || !renderedPayload) return null;
 
-    const yRange = computeVisibleYRange(renderedPayload, chartState.viewport || getDefaultViewport(renderedPayload));
+    const yRange = getVisibleYRange(renderedPayload);
     const min = Number(yRange.min);
     const max = Number(yRange.max);
     const numericPrice = Number(price);
@@ -1701,7 +2366,8 @@
     }
 
     const normalized = Math.max(0, Math.min(1, (numericPrice - min) / (max - min)));
-    return bounds.top + (1 - normalized) * bounds.height;
+    const y = bounds.top + (1 - normalized) * bounds.height;
+    return Math.max(bounds.top, Math.min(bounds.top + bounds.height, y));
   }
 
   function buildLabelNode(text, color, left, top, variant = "") {
@@ -1999,13 +2665,48 @@
       const width = Math.max(1, Math.abs(endX - startX));
       const height = Math.max(1, Math.abs(bottomY - topY));
 
-      zone.className = "annotation-zone";
+      // Enhanced SMC zone styling
+      let zoneClass = "annotation-zone";
+      let bgColor = region.color || "rgba(148, 163, 184, 0.08)";
+      let borderColor = region.borderColor || "rgba(148, 163, 184, 0.24)";
+
+      // Apply specific SMC styling based on zone type
+      if (region.label) {
+        const labelLower = region.label.toLowerCase();
+        if (labelLower.includes('demand') || labelLower.includes('buy')) {
+          bgColor = "rgba(38, 166, 154, 0.15)";
+          borderColor = "rgba(38, 166, 154, 0.4)";
+          zoneClass += " smc-demand";
+        } else if (labelLower.includes('supply') || labelLower.includes('sell')) {
+          bgColor = "rgba(239, 83, 80, 0.15)";
+          borderColor = "rgba(239, 83, 80, 0.4)";
+          zoneClass += " smc-supply";
+        } else if (labelLower.includes('order block') || labelLower.includes('ob')) {
+          bgColor = "rgba(156, 39, 176, 0.12)";
+          borderColor = "rgba(156, 39, 176, 0.35)";
+          zoneClass += " smc-order-block";
+        } else if (labelLower.includes('breaker')) {
+          bgColor = "rgba(255, 152, 0, 0.12)";
+          borderColor = "rgba(255, 152, 0, 0.35)";
+          zoneClass += " smc-breaker";
+        } else if (labelLower.includes('premium') || labelLower.includes('discount')) {
+          bgColor = "rgba(63, 81, 181, 0.1)";
+          borderColor = "rgba(63, 81, 181, 0.3)";
+          zoneClass += " smc-premium-discount";
+        } else if (labelLower.includes('liquidity') || labelLower.includes('liq')) {
+          bgColor = "rgba(255, 193, 7, 0.12)";
+          borderColor = "rgba(255, 193, 7, 0.35)";
+          zoneClass += " smc-liquidity";
+        }
+      }
+
+      zone.className = zoneClass;
       zone.style.left = `${left}px`;
       zone.style.top = `${top}px`;
       zone.style.width = `${width}px`;
       zone.style.height = `${height}px`;
-      zone.style.background = region.color || "rgba(148, 163, 184, 0.08)";
-      zone.style.borderColor = region.borderColor || "rgba(148, 163, 184, 0.24)";
+      zone.style.background = bgColor;
+      zone.style.borderColor = borderColor;
       zone.style.borderStyle = region.borderStyle || "solid";
 
       if (region.label) {
@@ -2279,12 +2980,12 @@
     rsiRuleValue.textContent = smc.rsiConfirmation || payload.analysis.indicators.divergence || "--";
     regimeValue.textContent = payload.analysis.regime.marketState;
     volatilityValue.textContent = payload.analysis.regime.volatilityState;
-    trendScoreValue.textContent = payload.analysis.scorecard.trend;
-    momentumScoreValue.textContent = payload.analysis.scorecard.momentum;
-    structureScoreValue.textContent = payload.analysis.scorecard.structure;
-    timingScoreValue.textContent = payload.analysis.scorecard.timing;
-    volatilityScoreValue.textContent = payload.analysis.scorecard.volatility;
-    adxValue.textContent = payload.analysis.indicators.adx != null ? payload.analysis.indicators.adx : "--";
+    if (trendScoreValue) trendScoreValue.textContent = payload.analysis.scorecard.trend;
+    if (momentumScoreValue) momentumScoreValue.textContent = payload.analysis.scorecard.momentum;
+    if (structureScoreValue) structureScoreValue.textContent = payload.analysis.scorecard.structure;
+    if (timingScoreValue) timingScoreValue.textContent = payload.analysis.scorecard.timing;
+    if (volatilityScoreValue) volatilityScoreValue.textContent = payload.analysis.scorecard.volatility;
+    if (adxValue) adxValue.textContent = payload.analysis.indicators.adx != null ? payload.analysis.indicators.adx : "--";
     
     // News Analysis Updates - Ensure elements exist
     if (newsSentimentValue) {
@@ -2293,7 +2994,23 @@
       newsImpactValue.textContent = news.impact || "--";
       newsArticlesValue.textContent = news.totalArticles || 0;
       newsEventsValue.textContent = news.keyEvents?.length || 0;
-      newsSummaryValue.textContent = news.summary || "No news data available.";
+      
+      // Display article summaries if available
+      if (news.articleSummaries && news.articleSummaries.length > 0) {
+        const summariesHtml = news.articleSummaries.map(article => `
+          <div style="margin-bottom: 12px; padding: 8px; background: rgba(255,255,255,0.03); border-left: 2px solid ${article.sentiment === 'positive' ? '#4caf50' : article.sentiment === 'negative' ? '#f44336' : '#9e9e9e'}; border-radius: 2px;">
+            <div style="font-size: 11px; font-weight: 600; color: var(--ink-bright); margin-bottom: 4px;">${article.summary}</div>
+            <div style="font-size: 9px; color: var(--ink-dim); display: flex; gap: 8px;">
+              <span>${article.source}</span>
+              <span>${article.publishedAt}</span>
+              <span style="color: ${article.sentiment === 'positive' ? '#4caf50' : article.sentiment === 'negative' ? '#f44336' : '#9e9e9e'}">${article.sentiment}</span>
+            </div>
+          </div>
+        `).join('');
+        newsSummaryValue.innerHTML = summariesHtml;
+      } else {
+        newsSummaryValue.textContent = news.summary || "No news data available.";
+      }
     }
     
     // Historical Movements Updates - Ensure elements exist
@@ -2334,7 +3051,19 @@
     setList(riskList, sanitizeRiskFlags(ai.riskFlags || []), "No AI risk flags yet.");
     setList(nextActionsList, ai.nextActions || payload.analysis.checklist || [], "Waiting for AI action items.");
     setList(invalidationList, ai.invalidations || (ai.entryPlan?.stopLogic ? [ai.entryPlan.stopLogic] : []), "No invalidation rules yet.");
+    
+    // Update enhanced dashboard with all new features
+    updateEnhancedDashboard(payload);
+    
+    // Directly update MTF display in case payload.analysis.mtf exists
+    if (payload.analysis && payload.analysis.mtf) {
+      updateMtfDisplay(payload.analysis.mtf);
+    }
+    
     renderCommandHistory(snapshot.history || []);
+    
+    // Draw sentiment timeline
+    drawSentimentTimeline();
   }
 
   function handleSnapshot(payload) {
@@ -2431,6 +3160,148 @@
   window.addEventListener("resize", () => {
     queueAnnotationRender();
   });
+
+  // Interactive Symbol Search & Timeframe handlers
+  const symbolSearchInput = document.getElementById("symbol-search-input");
+  const symbolSearchBtn = document.getElementById("symbol-search-btn");
+
+  async function executeSymbolChange(rawSymbol) {
+    const symbol = String(rawSymbol || "").trim().toUpperCase();
+    if (!symbol) return;
+    try {
+      const currentTf = renderedSnapshot?.selection?.timeframe || "1h";
+      if (statusCard) {
+        statusCard.dataset.tone = "loading";
+        if (statusLabel) statusLabel.textContent = "Loading...";
+        if (statusDetail) statusDetail.textContent = `Analyzing ${symbol}...`;
+      }
+
+      const response = await fetch(`/api/market?symbol=${encodeURIComponent(symbol)}&timeframe=${encodeURIComponent(currentTf)}`);
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || `Failed to fetch ${symbol}`);
+      }
+      const marketData = await response.json();
+      if (statusCard) {
+        statusCard.dataset.tone = "active";
+        if (statusLabel) statusLabel.textContent = "Active";
+        if (statusDetail) statusDetail.textContent = `Viewing ${marketData.displaySymbol || symbol}`;
+      }
+      
+      if (renderedSnapshot) {
+        renderedSnapshot.selection = { symbol: marketData.providerSymbol || symbol, timeframe: currentTf };
+        renderedSnapshot.latest = marketData;
+        renderMarket(renderedSnapshot);
+      }
+    } catch (err) {
+      if (statusCard) {
+        statusCard.dataset.tone = "error";
+        if (statusLabel) statusLabel.textContent = "Error";
+        if (statusDetail) statusDetail.textContent = err.message;
+      }
+    }
+  }
+
+  if (symbolSearchBtn) {
+    symbolSearchBtn.addEventListener("click", () => {
+      if (symbolSearchInput) executeSymbolChange(symbolSearchInput.value);
+    });
+  }
+  if (symbolSearchInput) {
+    symbolSearchInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") executeSymbolChange(symbolSearchInput.value);
+    });
+  }
+
+  // Timeframe buttons handler
+  const timeframeButtonsContainer = document.getElementById("timeframe-buttons");
+  if (timeframeButtonsContainer) {
+    timeframeButtonsContainer.querySelectorAll(".tf-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const tf = btn.dataset.tf;
+        const currentSymbol = renderedSnapshot?.selection?.symbol || "EURUSD";
+        timeframeButtonsContainer.querySelectorAll(".tf-btn").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        
+        try {
+          if (statusCard) {
+            statusCard.dataset.tone = "loading";
+            if (statusLabel) statusLabel.textContent = "Loading...";
+            if (statusDetail) statusDetail.textContent = `Fetching ${currentSymbol} ${tf}...`;
+          }
+          
+          const response = await fetch(`/api/market?symbol=${encodeURIComponent(currentSymbol)}&timeframe=${encodeURIComponent(tf)}`);
+          if (!response.ok) throw new Error("Timeframe change failed");
+          const marketData = await response.json();
+          if (statusCard) {
+            statusCard.dataset.tone = "active";
+            if (statusLabel) statusLabel.textContent = "Active";
+            if (statusDetail) statusDetail.textContent = `${marketData.displaySymbol} (${tf})`;
+          }
+
+          if (renderedSnapshot) {
+            renderedSnapshot.selection = { symbol: currentSymbol, timeframe: tf };
+            renderedSnapshot.latest = marketData;
+            renderMarket(renderedSnapshot);
+          }
+        } catch (err) {
+          if (statusCard) {
+            statusCard.dataset.tone = "error";
+            if (statusLabel) statusLabel.textContent = "Error";
+            if (statusDetail) statusDetail.textContent = err.message;
+          }
+        }
+      });
+    });
+  }
+
+  // Web Terminal Command Bar Handler
+  const webTerminalInput = document.getElementById("web-terminal-input");
+  const webTerminalBtn = document.getElementById("web-terminal-btn");
+
+  async function executeWebTerminalCommand(cmd) {
+    const rawCmd = String(cmd || "").trim();
+    if (!rawCmd) return;
+    try {
+      if (statusCard) {
+        statusCard.dataset.tone = "loading";
+        if (statusLabel) statusLabel.textContent = "Running...";
+        if (statusDetail) statusDetail.textContent = rawCmd;
+      }
+
+      const response = await fetch("/api/command", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ command: rawCmd })
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || "Command failed");
+      }
+
+      const updatedSnapshot = await response.json();
+      if (webTerminalInput) webTerminalInput.value = "";
+      handleSnapshot(updatedSnapshot);
+    } catch (err) {
+      if (statusCard) {
+        statusCard.dataset.tone = "error";
+        if (statusLabel) statusLabel.textContent = "Command Error";
+        if (statusDetail) statusDetail.textContent = err.message;
+      }
+    }
+  }
+
+  if (webTerminalBtn) {
+    webTerminalBtn.addEventListener("click", () => {
+      if (webTerminalInput) executeWebTerminalCommand(webTerminalInput.value);
+    });
+  }
+  if (webTerminalInput) {
+    webTerminalInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") executeWebTerminalCommand(webTerminalInput.value);
+    });
+  }
 
   clearLegacyWidgetLocation();
   applyChartModeUi();

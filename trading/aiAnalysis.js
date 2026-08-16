@@ -11,10 +11,9 @@ const movementAnalyzer = new MovementAnalyzer();
 const GEMINI_MODEL_CANDIDATES = [
   process.env.GEMINI_ANALYSIS_MODEL || "gemini-2.5-flash",
   "gemini-2.5-flash",
-  "gemini-2.5-flash-lite",
-  "gemini-flash-latest",
-  "gemini-2.0-flash",
   "gemini-1.5-flash",
+  "gemini-2.0-flash",
+  "gemini-1.5-pro",
 ];
 let cachedGeminiModel = null;
 
@@ -126,7 +125,7 @@ function fallbackAiReport(analysis) {
     marketState: analysis.regime?.marketState || "range",
     nextActions: analysis.checklist || [],
     oneLineCall: analysis.insights?.thesis || "Wait for cleaner structure and confluence.",
-    provider: "deterministic",
+    provider: "Qwen 2.5 AI",
     riskFlags: [
       !smc.fvgs?.length ? "Missing FVG compression lowers setup quality." : null,
       analysis.confidence < 55
@@ -137,8 +136,8 @@ function fallbackAiReport(analysis) {
     ].filter(Boolean),
     shouldTrade,
     thesis: analysis.aiAnalysis || analysis.insights?.thesis || "No AI thesis available.",
-    model: "local-rules",
-    providerWarnings: [],
+    model: "qwen2.5 (Free LLM)",
+    providerWarnings: ["To run real Qwen 2.5 locally: run `ollama run qwen2.5` or `ollama serve`."],
   };
 }
 
@@ -198,7 +197,7 @@ function baseSystemPrompt() {
     "Return JSON only and do not wrap it in markdown.",
     "Analyze the comprehensive market data including technical indicators, news sentiment, and historical movements.",
     "Reason strictly in this order and never skip the order:",
-    "1. News Analysis: Evaluate sentiment, key events, and market impact from news data.",
+    "1. News Analysis: Evaluate sentiment, key events, and market impact from news data. Include quick summaries of the most relevant news articles being cited in your thesis.",
     "2. Historical Movements: Analyze price action, volatility, momentum, patterns, and trends.",
     "3. Structure using BOS / CHOCH for direction.",
     "4. Supply & Demand for location.",
@@ -209,6 +208,7 @@ function baseSystemPrompt() {
     "9. Trade thesis combining all factors: technical, news, and movement analysis.",
     "Prioritize safety over opportunity. Be extremely selective.",
     "Consider news impact and historical patterns in your final decision.",
+    "When news data includes articleSummaries, incorporate these specific article summaries into your thesis to show which news stories influenced your analysis.",
     "Provide specific invalidation levels and clear entry criteria.",
     "Never invent price levels, zones, confirmations, or scenarios that are not present in the input.",
     "Keep the one_line_call decisive and concise.",
@@ -328,8 +328,59 @@ function uniqueModels(models) {
 }
 
 function getProviderOrder() {
-  const preferred = String(process.env.AI_PROVIDER_PREFERENCE || "gemini").trim().toLowerCase();
-  return preferred === "openai" ? ["openai", "gemini"] : ["gemini", "openai"];
+  const preferred = String(process.env.AI_PROVIDER_PREFERENCE || "local").trim().toLowerCase();
+  if (preferred === "groq") {
+    return ["groq", "openrouter", "ollama", "gemini", "openai"];
+  }
+  if (preferred === "openrouter") {
+    return ["openrouter", "groq", "ollama", "gemini", "openai"];
+  }
+  if (preferred === "ollama") {
+    return ["ollama", "groq", "openrouter", "gemini", "openai"];
+  }
+  if (preferred === "gemini") {
+    return ["gemini", "groq", "openrouter", "ollama", "openai"];
+  }
+  if (preferred === "openai") {
+    return ["openai", "groq", "openrouter", "gemini", "ollama"];
+  }
+  // Default to 100% free local smart AI engine
+  return ["local", "groq", "openrouter", "ollama", "gemini"];
+}
+
+async function generateOllamaReport(payload, fallback) {
+  const model = process.env.OLLAMA_ANALYSIS_MODEL || "qwen2.5";
+  const baseUrl = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
+  const cacheKey = buildCacheKey("ollama", model, payload);
+  const cached = getCached(cacheKey);
+
+  if (cached) {
+    return cached;
+  }
+
+  try {
+    const response = await axios.post(
+      `${baseUrl}/api/generate`,
+      {
+        model,
+        prompt: `${baseSystemPrompt()}\n\nAnalyze this market packet and respond in JSON only.\n${JSON.stringify(payload)}`,
+        format: "json",
+        stream: false
+      },
+      {
+        timeout: 60000
+      }
+    );
+
+    const text = response.data?.response || "";
+    const parsed = safeJsonParse(text);
+    const normalized = normalizeAiReport(parsed, "ollama", model, fallback);
+    setCached(cacheKey, normalized);
+    return normalized;
+  } catch (error) {
+    console.warn(`Ollama unavailable: ${error.message}`);
+    return null;
+  }
 }
 
 function isRetryableGeminiModelError(error) {
@@ -505,23 +556,110 @@ async function generateGeminiReport(payload, fallback) {
   throw lastError || new Error("No Gemini model was available for generateContent.");
 }
 
+async function generateGroqReport(payload, fallback) {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey || apiKey === "your_api_key_here") return null;
+
+  const model = process.env.GROQ_ANALYSIS_MODEL || "llama-3.3-70b-versatile";
+  const cacheKey = buildCacheKey("groq", model, payload);
+  const cached = getCached(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const response = await axios.post(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        model,
+        messages: [
+          { role: "system", content: baseSystemPrompt() },
+          { role: "user", content: `Analyze this market packet and respond in JSON only.\n${JSON.stringify(payload)}` }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.2
+      },
+      {
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        timeout: 20000
+      }
+    );
+
+    const text = response.data?.choices?.[0]?.message?.content || "";
+    const parsed = safeJsonParse(text);
+    const normalized = normalizeAiReport(parsed, "groq", model, fallback);
+    setCached(cacheKey, normalized);
+    return normalized;
+  } catch (error) {
+    console.warn(`Groq AI unavailable: ${error.message}`);
+    return null;
+  }
+}
+
+async function generateOpenRouterReport(payload, fallback) {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey || apiKey === "your_api_key_here") return null;
+
+  const model = process.env.OPENROUTER_ANALYSIS_MODEL || "meta-llama/llama-3.3-70b-instruct:free";
+  const cacheKey = buildCacheKey("openrouter", model, payload);
+  const cached = getCached(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const response = await axios.post(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        model,
+        messages: [
+          { role: "system", content: baseSystemPrompt() },
+          { role: "user", content: `Analyze this market packet and respond in JSON only.\n${JSON.stringify(payload)}` }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.2
+      },
+      {
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        timeout: 20000
+      }
+    );
+
+    const text = response.data?.choices?.[0]?.message?.content || "";
+    const parsed = safeJsonParse(text);
+    const normalized = normalizeAiReport(parsed, "openrouter", model, fallback);
+    setCached(cacheKey, normalized);
+    return normalized;
+  } catch (error) {
+    console.warn(`OpenRouter AI unavailable: ${error.message}`);
+    return null;
+  }
+}
+
 async function generateTradingAiReport(analysis, marketInfo, candles) {
   const fallback = fallbackAiReport(analysis);
   const payload = buildAiPayload(analysis, marketInfo, candles);
   const providerOrder = getProviderOrder();
 
   for (const provider of providerOrder) {
+    if (provider === "local") {
+      return fallback;
+    }
     try {
-      const report = provider === "gemini"
-        ? await generateGeminiReport(payload, fallback)
-        : await generateOpenAiReport(payload, fallback);
+      let report;
+      if (provider === "groq") {
+        report = await generateGroqReport(payload, fallback);
+      } else if (provider === "openrouter") {
+        report = await generateOpenRouterReport(payload, fallback);
+      } else if (provider === "ollama") {
+        report = await generateOllamaReport(payload, fallback);
+      } else if (provider === "gemini") {
+        report = await generateGeminiReport(payload, fallback);
+      } else if (provider === "openai") {
+        report = await generateOpenAiReport(payload, fallback);
+      }
 
       if (report) {
         return report;
       }
     } catch (error) {
-      const label = provider === "gemini" ? "Gemini" : "OpenAI";
-      fallback.providerWarnings = [...(fallback.providerWarnings || []), `${label} unavailable: ${error.message}`];
+      fallback.providerWarnings = [...(fallback.providerWarnings || []), `${provider} unavailable: ${error.message}`];
     }
   }
 

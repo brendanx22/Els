@@ -63,16 +63,16 @@ function getAiRefreshInterval(timeframe) {
   }
 
   const cadence = {
-    "1m": 1500,
-    "5m": 2000,
-    "15m": 3000,
-    "1h": 4500,
-    "4h": 7000,
-    "1d": 12000,
-    "1wk": 20000,
+    "1m": 30000,
+    "5m": 60000,
+    "15m": 120000,
+    "1h": 300000,
+    "4h": 600000,
+    "1d": 1800000,
+    "1wk": 3600000,
   };
 
-  return cadence[timeframe] || 5000;
+  return cadence[timeframe] || 60000;
 }
 
 function buildMarketKey(symbol, timeframe) {
@@ -88,13 +88,11 @@ function buildAiFingerprint(analysis, candles) {
   return JSON.stringify({
     bias: analysis?.bias || "",
     candleTime: latest?.time || null,
-    close: latest?.close != null ? Number(Number(latest.close).toFixed(5)) : null,
     confidence: analysis?.confidence || null,
     directionalBias: primarySetup.direction || "",
     fib05: fib.level05 || null,
     fib0705: fib.level0705 || null,
     fvg: smc.selectedFvg?.time || smc.fvgs?.[0]?.time || null,
-    rsi: analysis?.indicators?.rsi14 || null,
     setupLabel: primarySetup.label || "",
     structure: smc.internalStructure || analysis?.structure?.sequence || "",
     zone:
@@ -521,6 +519,9 @@ class TradingSessionStore extends EventEmitter {
           analysis,
           news: analysis.news || null,
           movements: analysis.movements || null,
+          advancedPatterns: analysis.advancedPatterns || null,
+          predictive: analysis.predictive || null,
+          mtf: analysis.mtf || null,
         };
         this.aiState.inFlight = false;
         this.aiState.requestId += 1;

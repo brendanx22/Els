@@ -91,9 +91,21 @@ const TIMEFRAME_MAP = {
     label: "15 Minutes",
     range: "5d",
   },
+  "30m": {
+    aggregate: 2,
+    interval: "15m",
+    label: "30 Minutes",
+    range: "5d",
+  },
   "1h": {
     interval: "60m",
     label: "1 Hour",
+    range: "1mo",
+  },
+  "2h": {
+    aggregate: 2,
+    interval: "60m",
+    label: "2 Hours",
     range: "1mo",
   },
   "4h": {
@@ -102,15 +114,49 @@ const TIMEFRAME_MAP = {
     label: "4 Hours",
     range: "3mo",
   },
+  "6h": {
+    aggregate: 6,
+    interval: "60m",
+    label: "6 Hours",
+    range: "3mo",
+  },
+  "8h": {
+    aggregate: 8,
+    interval: "60m",
+    label: "8 Hours",
+    range: "3mo",
+  },
+  "12h": {
+    aggregate: 12,
+    interval: "60m",
+    label: "12 Hours",
+    range: "3mo",
+  },
   "1d": {
     interval: "1d",
     label: "1 Day",
     range: "1y",
   },
+  "3d": {
+    aggregate: 3,
+    interval: "1d",
+    label: "3 Days",
+    range: "1y",
+  },
+  "1w": {
+    interval: "1wk",
+    label: "1 Week",
+    range: "5y",
+  },
   "1wk": {
     interval: "1wk",
     label: "1 Week",
     range: "5y",
+  },
+  "1M": {
+    interval: "1mo",
+    label: "1 Month",
+    range: "10y",
   },
 };
 
@@ -297,6 +343,10 @@ function getTimeframeConfig(timeframe) {
 }
 
 function aggregateCandles(candles, groupSize) {
+  if (!Array.isArray(candles)) {
+    console.warn("[aggregateCandles] candles is not an array:", typeof candles, candles);
+    return [];
+  }
   if (!groupSize || groupSize <= 1) {
     return candles;
   }

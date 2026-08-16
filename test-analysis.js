@@ -27,6 +27,22 @@ async function testAnalysis() {
       console.log('📈 Movement volatility:', result.movements.volatility?.volatilityIndex || 'N/A');
       console.log('📈 Movement patterns:', result.movements.patterns?.length || 0);
     }
+
+    console.log('🎯 Advanced patterns:', result.advancedPatterns ? 'Present' : 'Missing');
+    if (result.advancedPatterns) {
+      console.log('   - Candlestick patterns count:', result.advancedPatterns.candlestick?.length || 0);
+      console.log('   - Chart patterns count:', result.advancedPatterns.chart?.length || 0);
+      console.log('   - Harmonic patterns count:', result.advancedPatterns.harmonic?.length || 0);
+      console.log('   - SMC concepts count:', result.advancedPatterns.smartMoney?.length || 0);
+      console.log('   - Divergences count:', result.advancedPatterns.divergences?.length || 0);
+    }
+
+    console.log('📊 MTF analysis:', result.mtf ? 'Present' : 'Missing');
+    if (result.mtf) {
+      console.log('   - Confluence direction:', result.mtf.confluenceScore?.direction || 'N/A');
+      console.log('   - Confluence score:', result.mtf.confluenceScore?.score || 'N/A');
+      console.log('   - Recommendation action:', result.mtf.recommendation?.action || 'N/A');
+    }
     
   } catch (error) {
     console.error('❌ Error:', error.message);

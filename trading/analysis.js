@@ -20,10 +20,19 @@ const {
 const axios = require("axios");
 const { fallbackAiReport, generateTradingAiReport } = require("./aiAnalysis");
 const { NewsAnalyzer, MovementAnalyzer } = require("./newsAnalysis");
+const { MultiSourceNewsAggregator } = require("./multiSourceNews");
+const { AdvancedPatternRecognition } = require("./advancedPatterns");
+const { PredictiveAnalytics } = require("./predictiveAnalytics");
+const { EnhancedAIAnalysis } = require("./enhancedAI");
 
 // Initialize analyzers
 const newsAnalyzer = new NewsAnalyzer();
 const movementAnalyzer = new MovementAnalyzer();
+const newsAggregator = new MultiSourceNewsAggregator();
+const patternRecognizer = new AdvancedPatternRecognition();
+const predictor = new PredictiveAnalytics();
+let mtfAnalyzer;
+const aiAnalyzer = new EnhancedAIAnalysis();
 
 async function getAIAnalysis(marketData, technicals) {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -1499,6 +1508,9 @@ async function analyzeCandles(candles, marketInfo = {}) {
   // Fetch news and movement analysis
   let newsData = null;
   let movementData = null;
+  let advancedPatterns = null;
+  let predictiveData = null;
+  let mtfData = null;
   
   try {
     newsData = await newsAnalyzer.fetchMarketNews(marketInfo.symbol, marketInfo.timeframe);
@@ -1512,12 +1524,38 @@ async function analyzeCandles(candles, marketInfo = {}) {
     console.warn(`Movement analysis failed for ${marketInfo.symbol}:`, error.message);
   }
 
+  // Advanced analysis
+  try {
+    advancedPatterns = patternRecognizer.detectPatterns(candles, marketInfo.symbol, marketInfo.timeframe);
+  } catch (error) {
+    console.warn(`Pattern recognition failed for ${marketInfo.symbol}:`, error.message);
+  }
+
+  try {
+    predictiveData = await predictor.generateForecast(candles, marketInfo.symbol, marketInfo.timeframe, newsData, movementData);
+  } catch (error) {
+    console.warn(`Predictive analytics failed for ${marketInfo.symbol}:`, error.message);
+  }
+
+  try {
+    if (!mtfAnalyzer) {
+      const { MultiTimeframeAnalysis } = require("./multiTimeframeAnalysis");
+      mtfAnalyzer = new MultiTimeframeAnalysis();
+    }
+    mtfData = await mtfAnalyzer.analyzeAllTimeframes(marketInfo.symbol, marketInfo.timeframe);
+  } catch (error) {
+    console.warn(`Multi-timeframe analysis failed for ${marketInfo.symbol}:`, error.message);
+  }
+
   return {
     ...baseAnalysis,
     ai,
     aiAnalysis: ai.oneLineCall || baseAnalysis.aiAnalysis,
     news: newsData,
     movements: movementData,
+    advancedPatterns,
+    predictive: predictiveData,
+    mtf: mtfData
   };
 }
 

@@ -7,6 +7,7 @@ const createApp = require("../dashboard/app");
 const { searchSymbols, TIMEFRAME_MAP } = require("../trading/marketData");
 const sessionStore = require("../trading/sessionStore");
 const STT = require("../voice/stt");
+const { RealtimeWebSocketServer } = require("../trading/websocketServer");
 
 const PORT = Number.parseInt(process.env.PORT || "3001", 10);
 const DASHBOARD_URL = `http://localhost:${PORT}`;
@@ -262,13 +263,18 @@ function acquireControllerLock() {
     pid: process.pid,
     port: PORT,
   };
-  const runningControllers = findOtherTerminalControllers();
-
-  if (runningControllers.length) {
-    const message = `Another trading terminal is already running on PID ${runningControllers.join(", ")}. Close the older controller first so the live symbol stops getting stuck.`;
-    const lockError = new Error(message);
-    lockError.code = "TERMINAL_LOCKED";
-    throw lockError;
+  // First check if lock file exists - if not, skip findOtherTerminalControllers check
+  const existingLock = readControllerLock();
+  if (!existingLock) {
+    // No lock file - just proceed to write lock
+  } else {
+    const runningControllers = findOtherTerminalControllers();
+    if (runningControllers.length) {
+      const message = `Another trading terminal is already running on PID ${runningControllers.join(", ")}. Close the older controller first so the live symbol stops getting stuck.`;
+      const lockError = new Error(message);
+      lockError.code = "TERMINAL_LOCKED";
+      throw lockError;
+    }
   }
 
   try {
@@ -659,6 +665,10 @@ async function startServer() {
 async function main() {
   acquireControllerLock();
   const server = await startServer();
+  
+  // Start WebSocket server
+  const wsServer = new RealtimeWebSocketServer(3003);
+  await wsServer.start();
   
   // Initialize voice recognition
   await initializeVoice();
