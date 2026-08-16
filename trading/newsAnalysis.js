@@ -589,59 +589,75 @@ class MovementAnalyzer {
   }
 
   identifyPatterns(candles) {
+    if (!candles || candles.length < 5) return [];
     const patterns = [];
-    const recent = candles.slice(-20);
+    const len = candles.length;
+    const recent = candles.slice(-15);
 
-    // Simple pattern detection
-    if (this.isHammer(recent[recent.length - 1])) {
-      patterns.push({ type: 'hammer', signal: 'bullish', strength: 'moderate' });
+    // Scan through the last 15 candles for clear price action formations
+    for (let i = 2; i < recent.length; i++) {
+      const c2 = recent[i - 2];
+      const c1 = recent[i - 1];
+      const c0 = recent[i];
+
+      const body0 = Math.abs(c0.close - c0.open);
+      const range0 = c0.high - c0.low || 0.0001;
+      const upper0 = c0.high - Math.max(c0.open, c0.close);
+      const lower0 = Math.min(c0.open, c0.close) - c0.low;
+
+      // 1. Pin Bar / Hammer (Reversal)
+      if (lower0 >= body0 * 2 && upper0 <= body0 * 0.8 && range0 > 0) {
+        patterns.push({ type: 'Hammer', signal: 'bullish', strength: 'high' });
+      } else if (upper0 >= body0 * 2 && lower0 <= body0 * 0.8 && range0 > 0) {
+        patterns.push({ type: 'Shooting Star', signal: 'bearish', strength: 'high' });
+      }
+
+      // 2. Doji (Indecision)
+      if (body0 <= range0 * 0.12) {
+        patterns.push({ type: 'Doji', signal: 'neutral', strength: 'moderate' });
+      }
+
+      // 3. Engulfing
+      const prevBody = Math.abs(c1.close - c1.open);
+      const c1Bull = c1.close > c1.open;
+      const c0Bull = c0.close > c0.open;
+
+      if (!c1Bull && c0Bull && c0.close >= c1.open && c0.open <= c1.close) {
+        patterns.push({ type: 'Bullish Engulfing', signal: 'bullish', strength: 'high' });
+      } else if (c1Bull && !c0Bull && c0.open >= c1.close && c0.close <= c1.open) {
+        patterns.push({ type: 'Bearish Engulfing', signal: 'bearish', strength: 'high' });
+      }
+
+      // 4. Morning / Evening Star (3-bar reversal)
+      const c2Bull = c2.close > c2.open;
+      const c1Body = Math.abs(c1.close - c1.open);
+      const c2Body = Math.abs(c2.close - c2.open);
+
+      if (!c2Bull && c1Body < c2Body * 0.4 && c0Bull && c0.close > (c2.open + c2.close) / 2) {
+        patterns.push({ type: 'Morning Star', signal: 'bullish', strength: 'strong' });
+      } else if (c2Bull && c1Body < c2Body * 0.4 && !c0Bull && c0.close < (c2.open + c2.close) / 2) {
+        patterns.push({ type: 'Evening Star', signal: 'bearish', strength: 'strong' });
+      }
+
+      // 5. Momentum Marubozu
+      if (body0 >= range0 * 0.82) {
+        patterns.push({ type: c0Bull ? 'Bullish Marubozu' : 'Bearish Marubozu', signal: c0Bull ? 'bullish' : 'bearish', strength: 'moderate' });
+      }
     }
 
-    if (this.isDoji(recent[recent.length - 1])) {
-      patterns.push({ type: 'doji', signal: 'neutral', strength: 'weak' });
+    // Deduplicate and return the most recent 3 unique patterns
+    const unique = [];
+    const seen = new Set();
+    for (let i = patterns.length - 1; i >= 0; i--) {
+      const p = patterns[i];
+      if (!seen.has(p.type)) {
+        seen.add(p.type);
+        unique.unshift(p);
+      }
+      if (unique.length >= 3) break;
     }
 
-    if (this.isEngulfing(recent.slice(-2))) {
-      patterns.push({ type: 'engulfing', signal: 'strong', strength: 'high' });
-    }
-
-    return patterns;
-  }
-
-  isHammer(candle) {
-    const body = Math.abs(candle.close - candle.open);
-    const upperShadow = candle.high - Math.max(candle.open, candle.close);
-    const lowerShadow = Math.min(candle.open, candle.close) - candle.low;
-    
-    return body < (candle.high - candle.low) * 0.3 && 
-           lowerShadow > body * 2 && 
-           upperShadow < body * 0.5;
-  }
-
-  isDoji(candle) {
-    const body = Math.abs(candle.close - candle.open);
-    const range = candle.high - candle.low;
-    return body < range * 0.1;
-  }
-
-  isEngulfing(candles) {
-    if (candles.length < 2) return false;
-    
-    const prev = candles[0];
-    const curr = candles[1];
-    
-    const prevBullish = prev.close > prev.open;
-    const currBullish = curr.close > curr.open;
-    
-    if (prevBullish && !currBullish) {
-      // Bearish engulfing
-      return curr.open > prev.high && curr.close < prev.low;
-    } else if (!prevBullish && currBullish) {
-      // Bullish engulfing
-      return curr.open < prev.low && curr.close > prev.high;
-    }
-    
-    return false;
+    return unique.length > 0 ? unique : [{ type: 'Consolidation', signal: 'neutral', strength: 'normal' }];
   }
 
   findSupportResistance(candles) {

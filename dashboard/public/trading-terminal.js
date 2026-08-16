@@ -3198,7 +3198,18 @@
       movementTrendValue.textContent = movements.trend?.direction || "--";
       
       const patterns = movements.patterns || [];
-      movementPatternsValue.textContent = patterns.length ? patterns.map(p => p.type).join(", ") : "--";
+      if (patterns.length > 0) {
+        movementPatternsValue.textContent = patterns.map(p => p.type || p.name).join(", ");
+      } else {
+        const adv = payload.analysis?.advancedPatterns || {};
+        const fallbackList = [
+          ...(adv.chart || []).map(p => p.name),
+          ...(adv.harmonic || []).map(p => p.name),
+          ...(adv.smartMoney || []).map(p => p.name),
+          ...(adv.candlestick || []).slice(-2).map(p => p.name)
+        ].filter(Boolean);
+        movementPatternsValue.textContent = fallbackList.length ? fallbackList.slice(0, 3).join(", ") : "Consolidating";
+      }
       
       const supportLevels = movements.supportResistance?.support || [];
       const resistanceLevels = movements.supportResistance?.resistance || [];
