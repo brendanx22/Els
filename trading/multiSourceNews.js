@@ -19,31 +19,23 @@ class MultiSourceNewsAggregator {
       twitter: { lastRequest: 0, minInterval: 2000, count: 0, maxPerHour: 300 }
     };
 
-    // RSS Feed sources
+    // Live high-speed RSS Feed sources
     this.rssSources = {
-      forexlive: 'https://www.forexlive.com/feed',
-      investing: 'https://www.investing.com/rss/news.xml',
-      coindesk: 'https://www.coindesk.com/arc/outboundfeeds/rss/',
-      cnbc: 'https://www.cnbc.com/id/19746125/device/rss/rss.html',
-      bloomberg: 'https://feeds.bloomberg.com/news.rss',
-      reuters: 'https://www.reuters.com/rss/news',
-      marketwatch: 'https://feeds.marketwatch.com/marketwatch/topstories/',
-      ft: 'https://www.ft.com/rss/home',
-      wsj: 'https://feeds.content.dowjones.io/public/rss/RSSMarketsMain'
+      fxstreet: 'https://www.fxstreet.com/rss/news',
+      cnbc: 'https://www.cnbc.com/id/10000664/device/rss/rss.html',
+      yahoo: 'https://finance.yahoo.com/news/rssindex',
+      marketwatch: 'https://feeds.content.dowjones.io/public/rss/mw_topstories',
+      coindesk: 'https://www.coindesk.com/arc/outboundfeeds/rss/'
     };
 
     // Source reliability scores
     this.sourceReliability = {
-      'bloomberg': 0.95,
-      'reuters': 0.95,
-      'wsj': 0.93,
-      'ft': 0.92,
-      'cnbc': 0.88,
-      'marketwatch': 0.85,
-      'investing': 0.82,
-      'forexlive': 0.88,
+      'yahoo': 0.95,
+      'cnbc': 0.92,
+      'marketwatch': 0.90,
+      'fxstreet': 0.90,
       'coindesk': 0.90,
-      'newsapi': 0.80
+      'newsapi': 0.85
     };
   }
 
@@ -175,9 +167,9 @@ class MultiSourceNewsAggregator {
     const feedPromises = Object.entries(this.rssSources).map(async ([sourceName, url]) => {
       try {
         const response = await axios.get(url, {
-          timeout: 10000,
+          timeout: 4000,
           headers: {
-            'User-Agent': 'ELS Trading Terminal News Bot 1.0'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
           }
         });
 
@@ -185,30 +177,37 @@ class MultiSourceNewsAggregator {
         const $ = cheerio.load(response.data, { xmlMode: true });
         
         $('item').each((i, elem) => {
-          if (i >= 5) return false; // Limit to 5 per source
+          if (i >= 8) return false;
 
-          const title = $(elem).find('title').text();
-          const description = $(elem).find('description').text();
+          const title = $(elem).find('title').text() || '';
+          const description = $(elem).find('description').text() || '';
           const pubDate = $(elem).find('pubDate').text();
           const link = $(elem).find('link').text();
 
-          // Check if article matches symbol
+          // Check if article matches symbol or macro financial market terms
           const content = (title + ' ' + description).toLowerCase();
-          const matches = searchTerms.some(term => content.includes(term.toLowerCase()));
+          const macroTerms = ['market', 'rate', 'inflation', 'fed', 'dollar', 'economy', 'yield', 'currency', 'stocks', 'forex', 'crypto', 'central bank'];
+          const matches = searchTerms.some(term => content.includes(term.toLowerCase())) ||
+            macroTerms.some(t => content.includes(t));
 
-          if (matches) {
+          if (matches && title.trim()) {
+            let publishedAt = new Date().toISOString();
+            try {
+              if (pubDate) publishedAt = new Date(pubDate).toISOString();
+            } catch (_) {}
+
             articles.push({
-              title,
-              description,
-              url: link,
+              title: title.trim(),
+              description: description.replace(/<[^>]+>/g, '').trim(),
+              url: link || null,
               source: sourceName,
-              publishedAt: new Date(pubDate).toISOString(),
+              publishedAt,
               content: description
             });
           }
         });
       } catch (error) {
-        console.warn(`RSS fetch failed for ${sourceName}:`, error.message);
+        // Silently skip failed feed
       }
     });
 

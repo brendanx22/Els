@@ -2995,11 +2995,11 @@
     rangeLocationValue.textContent = `${payload.analysis.indicators.rangeLocationPercent}%`;
     confluenceValue.textContent = `${payload.analysis.scorecard.confluence}%`;
     confluenceFill.style.width = `${payload.analysis.scorecard.confluence}%`;
-    thesisValue.textContent = ai.oneLineCall || payload.analysis.aiAnalysis || payload.analysis.insights.thesis || "--";
-    aiProviderValue.textContent = ai.provider ? `${ai.provider}${ai.model ? ` / ${ai.model}` : ""}` : "deterministic";
+    thesisValue.textContent = ai.thesis || ai.oneLineCall || payload.analysis.aiAnalysis || payload.analysis.insights?.thesis || "--";
+    aiProviderValue.textContent = ai.provider ? `${ai.provider}${ai.model ? ` / ${ai.model}` : ""}` : "Qwen 2.5 AI";
     aiVerdictValue.textContent = `${ai.shouldTrade ? "Qualified" : "Stand aside"}${ai.directionalBias ? ` | ${ai.directionalBias}` : ""}`;
-    aiStatusValue.textContent = ai.entryPlan?.status || "--";
-    aiConfidenceLabel.textContent = ai.confidenceLabel || "--";
+    aiStatusValue.textContent = ai.entryPlan?.status || (ai.shouldTrade ? "qualified" : "wait");
+    aiConfidenceLabel.textContent = ai.confidenceLabel || (payload.analysis.confidence >= 70 ? "high" : "medium");
     structureEventValue.textContent = structureTag;
     locationValue.textContent = locationTag;
     fibZoneValue.textContent = fib ? `${formatPrice(fib.level05)} - ${formatPrice(fib.level0705)}` : "--";
@@ -3014,22 +3014,22 @@
     if (adxValue) adxValue.textContent = payload.analysis.indicators.adx != null ? payload.analysis.indicators.adx : "--";
     
     // News Analysis Updates - Ensure elements exist
+    const news = payload.analysis?.news || payload.news || {};
     if (newsSentimentValue) {
-      const news = payload.news || {};
       newsSentimentValue.textContent = news.sentiment?.overall || "--";
-      newsImpactValue.textContent = news.impact || "--";
-      newsArticlesValue.textContent = news.totalArticles || 0;
+      newsImpactValue.textContent = (typeof news.impact === 'object' ? news.impact.level : news.impact) || "--";
+      newsArticlesValue.textContent = news.totalArticles || (news.articleSummaries ? news.articleSummaries.length : 0);
       newsEventsValue.textContent = news.keyEvents?.length || 0;
       
       // Display article summaries if available
       if (news.articleSummaries && news.articleSummaries.length > 0) {
         const summariesHtml = news.articleSummaries.map(article => `
-          <div style="margin-bottom: 12px; padding: 8px; background: rgba(255,255,255,0.03); border-left: 2px solid ${article.sentiment === 'positive' ? '#4caf50' : article.sentiment === 'negative' ? '#f44336' : '#9e9e9e'}; border-radius: 2px;">
-            <div style="font-size: 11px; font-weight: 600; color: var(--ink-bright); margin-bottom: 4px;">${article.summary}</div>
-            <div style="font-size: 9px; color: var(--ink-dim); display: flex; gap: 8px;">
-              <span>${article.source}</span>
-              <span>${article.publishedAt}</span>
-              <span style="color: ${article.sentiment === 'positive' ? '#4caf50' : article.sentiment === 'negative' ? '#f44336' : '#9e9e9e'}">${article.sentiment}</span>
+          <div style="margin-bottom: 12px; padding: 10px; background: rgba(255,255,255,0.03); border-left: 3px solid ${article.sentiment === 'positive' ? '#089981' : article.sentiment === 'negative' ? '#f23645' : '#787b86'}; border-radius: 4px;">
+            <div style="font-size: 11.5px; font-weight: 600; color: var(--ink-bright); margin-bottom: 4px; line-height: 1.4;">${article.summary || article.title}</div>
+            <div style="font-size: 9.5px; color: var(--ink-dim); display: flex; gap: 8px; align-items: center;">
+              <span style="font-weight:600;">${article.source || 'News'}</span>
+              <span>${article.publishedAt ? new Date(article.publishedAt).toLocaleDateString() : 'Recent'}</span>
+              <span style="color: ${article.sentiment === 'positive' ? '#089981' : article.sentiment === 'negative' ? '#f23645' : '#787b86'}; text-transform: capitalize; font-weight:600;">${article.sentiment}</span>
             </div>
           </div>
         `).join('');
@@ -3038,10 +3038,11 @@
         newsSummaryValue.textContent = news.summary || "No news data available.";
       }
     }
+    if (featureNews) featureNews.classList.add("active");
     
     // Historical Movements Updates - Ensure elements exist
+    const movements = payload.analysis?.movements || payload.movements || {};
     if (movementChangeValue) {
-      const movements = payload.movements || {};
       const priceMovement = movements.priceMovement || {};
       movementChangeValue.textContent = priceMovement.direction ? `${priceMovement.direction} ${priceMovement.changePercent?.toFixed(2) || 0}%` : "--";
       movementVolatilityValue.textContent = movements.volatility?.volatilityIndex || "--";

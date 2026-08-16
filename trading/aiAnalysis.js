@@ -328,24 +328,21 @@ function uniqueModels(models) {
 }
 
 function getProviderOrder() {
-  const preferred = String(process.env.AI_PROVIDER_PREFERENCE || "local").trim().toLowerCase();
+  const preferred = String(process.env.AI_PROVIDER_PREFERENCE || "qwen").trim().toLowerCase();
+  if (preferred === "ollama") {
+    return ["ollama", "openrouter", "groq", "gemini", "openai"];
+  }
   if (preferred === "groq") {
     return ["groq", "openrouter", "ollama", "gemini", "openai"];
   }
-  if (preferred === "openrouter") {
-    return ["openrouter", "groq", "ollama", "gemini", "openai"];
-  }
-  if (preferred === "ollama") {
-    return ["ollama", "groq", "openrouter", "gemini", "openai"];
-  }
   if (preferred === "gemini") {
-    return ["gemini", "groq", "openrouter", "ollama", "openai"];
+    return ["gemini", "openrouter", "groq", "ollama", "openai"];
   }
   if (preferred === "openai") {
-    return ["openai", "groq", "openrouter", "gemini", "ollama"];
+    return ["openai", "openrouter", "groq", "gemini", "ollama"];
   }
-  // Default to 100% free local smart AI engine
-  return ["local", "groq", "openrouter", "ollama", "gemini"];
+  // Default to Qwen 2.5 via OpenRouter, Ollama, Groq, Gemini
+  return ["openrouter", "ollama", "groq", "gemini", "openai"];
 }
 
 async function generateOllamaReport(payload, fallback) {
@@ -374,7 +371,7 @@ async function generateOllamaReport(payload, fallback) {
 
     const text = response.data?.response || "";
     const parsed = safeJsonParse(text);
-    const normalized = normalizeAiReport(parsed, "ollama", model, fallback);
+    const normalized = normalizeAiReport(parsed, "Qwen 2.5 (Ollama)", model, fallback);
     setCached(cacheKey, normalized);
     return normalized;
   } catch (error) {
@@ -585,7 +582,7 @@ async function generateGroqReport(payload, fallback) {
 
     const text = response.data?.choices?.[0]?.message?.content || "";
     const parsed = safeJsonParse(text);
-    const normalized = normalizeAiReport(parsed, "groq", model, fallback);
+    const normalized = normalizeAiReport(parsed, "Groq AI", model, fallback);
     setCached(cacheKey, normalized);
     return normalized;
   } catch (error) {
@@ -598,43 +595,61 @@ async function generateOpenRouterReport(payload, fallback) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey || apiKey === "your_api_key_here") return null;
 
-  const model = process.env.OPENROUTER_ANALYSIS_MODEL || "meta-llama/llama-3.3-70b-instruct:free";
-  const cacheKey = buildCacheKey("openrouter", model, payload);
-  const cached = getCached(cacheKey);
-  if (cached) return cached;
+  const candidateModels = [
+    process.env.OPENROUTER_ANALYSIS_MODEL,
+    "qwen/qwen-2.5-72b-instruct",
+    "qwen/qwen-2.5-coder-32b-instruct",
+    "qwen/qwen-2.5-7b-instruct:free",
+    "qwen/qwen-2.5-7b-instruct"
+  ].filter(Boolean);
 
-  try {
-    const response = await axios.post(
-      "https://openrouter.ai/api/v1/chat/completions",
-      {
-        model,
-        messages: [
-          { role: "system", content: baseSystemPrompt() },
-          { role: "user", content: `Analyze this market packet and respond in JSON only.\n${JSON.stringify(payload)}` }
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0.2
-      },
-      {
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        timeout: 20000
+  for (const model of candidateModels) {
+    const cacheKey = buildCacheKey("openrouter", model, payload);
+    const cached = getCached(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const response = await axios.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        {
+          model,
+          messages: [
+            { role: "system", content: baseSystemPrompt() },
+            { role: "user", content: `Analyze this market packet and respond in JSON only.\n${JSON.stringify(payload)}` }
+          ],
+          response_format: { type: "json_object" },
+          temperature: 0.2
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://els-beta.vercel.app",
+            "X-Title": "ELS Trading Terminal"
+          },
+          timeout: 25000
+        }
+      );
+
+      const text = response.data?.choices?.[0]?.message?.content || "";
+      const parsed = safeJsonParse(text);
+      if (parsed && typeof parsed === "object") {
+        const normalized = normalizeAiReport(parsed, "Qwen 2.5 (OpenRouter)", model, fallback);
+        setCached(cacheKey, normalized);
+        return normalized;
       }
-    );
-
-    const text = response.data?.choices?.[0]?.message?.content || "";
-    const parsed = safeJsonParse(text);
-    const normalized = normalizeAiReport(parsed, "openrouter", model, fallback);
-    setCached(cacheKey, normalized);
-    return normalized;
-  } catch (error) {
-    console.warn(`OpenRouter AI unavailable: ${error.message}`);
-    return null;
+    } catch (error) {
+      console.warn(`OpenRouter model ${model} error: ${error.message}`);
+      continue;
+    }
   }
+
+  return null;
 }
 
 async function generateTradingAiReport(analysis, marketInfo, candles) {
   const fallback = fallbackAiReport(analysis);
-  const payload = buildAiPayload(analysis, marketInfo, candles);
+  const payload = await buildAiPayload(analysis, marketInfo, candles);
   const providerOrder = getProviderOrder();
 
   for (const provider of providerOrder) {
@@ -643,12 +658,12 @@ async function generateTradingAiReport(analysis, marketInfo, candles) {
     }
     try {
       let report;
-      if (provider === "groq") {
-        report = await generateGroqReport(payload, fallback);
-      } else if (provider === "openrouter") {
+      if (provider === "openrouter") {
         report = await generateOpenRouterReport(payload, fallback);
       } else if (provider === "ollama") {
         report = await generateOllamaReport(payload, fallback);
+      } else if (provider === "groq") {
+        report = await generateGroqReport(payload, fallback);
       } else if (provider === "gemini") {
         report = await generateGeminiReport(payload, fallback);
       } else if (provider === "openai") {
