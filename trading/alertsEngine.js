@@ -21,14 +21,22 @@ class AlertsEngine {
     const isBullish = (messageData.direction || messageData.signal || "").toLowerCase().includes("bull");
     const color = isBullish ? 0x00ff88 : 0xf23645;
 
+    function fmt(val) {
+      if (val == null || isNaN(val)) return "--";
+      const num = Number(val);
+      if (num >= 1000) return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      if (num >= 1) return num.toFixed(4);
+      return num.toFixed(6);
+    }
+
     const embed = {
-      title: `⚡ ELS Terminal Alert: ${messageData.symbol || "MARKET"} (${messageData.timeframe || "1h"})`,
-      description: messageData.text || messageData.detail || "New market event triggered.",
+      title: `⚡ ELS Trade Signal: ${messageData.symbol || "MARKET"} (${messageData.timeframe || "1h"})`,
+      description: messageData.setupType ? `**Setup:** ${messageData.setupType}` : (messageData.text || messageData.detail || "New market setup identified."),
       color: color,
       fields: [
         { name: "Direction", value: (messageData.direction || messageData.bias || "NEUTRAL").toUpperCase(), inline: true },
         { name: "Confluence", value: `${messageData.confluenceScore || messageData.confidence || "--"}%`, inline: true },
-        { name: "Current Price", value: String(messageData.price || "--"), inline: true }
+        { name: "Current Price", value: fmt(messageData.price || messageData.entry), inline: true }
       ],
       footer: { text: "ELS Institutional Trading Terminal • Automated Webhook" },
       timestamp: new Date().toISOString()
@@ -36,10 +44,16 @@ class AlertsEngine {
 
     if (messageData.entry) {
       embed.fields.push(
-        { name: "Entry", value: String(messageData.entry), inline: true },
-        { name: "Stop Loss", value: String(messageData.stopLoss || "--"), inline: true },
-        { name: "Target 1", value: String(messageData.target1 || messageData.tp1 || "--"), inline: true }
+        { name: "Entry Price", value: fmt(messageData.entry), inline: true },
+        { name: "Stop Loss (SL)", value: fmt(messageData.stopLoss), inline: true },
+        { name: "Take Profit 1 (TP1)", value: fmt(messageData.takeProfit1 || messageData.target1), inline: true }
       );
+      if (messageData.takeProfit2) {
+        embed.fields.push({ name: "Take Profit 2 (TP2)", value: fmt(messageData.takeProfit2), inline: true });
+      }
+      if (messageData.riskReward) {
+        embed.fields.push({ name: "R:R Ratio", value: messageData.riskReward, inline: true });
+      }
     }
 
     await axios.post(webhookUrl, {
@@ -59,15 +73,41 @@ class AlertsEngine {
       throw new Error("Missing Telegram Bot Token or Chat ID");
     }
 
-    const emoji = (messageData.direction || "").toLowerCase().includes("bull") ? "🟢" : "🔴";
+    const isBull = (messageData.direction || "").toUpperCase().includes("BULL") || (messageData.direction || "").toUpperCase().includes("BUY");
+    const emoji = isBull ? "🟢" : "🔴";
+    const dirText = isBull ? "BUY / LONG" : "SELL / SHORT";
+
+    function fmt(val) {
+      if (val == null || isNaN(val)) return "--";
+      const num = Number(val);
+      if (num >= 1000) return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      if (num >= 1) return num.toFixed(4);
+      return num.toFixed(6);
+    }
+
+    let planSection = "";
+    if (messageData.entry) {
+      planSection = `
+📍 *TRADE EXECUTION PLAN:*
+• *Action:* \`${dirText}\`
+• *Entry:* \`${fmt(messageData.entry)}\`
+• *Stop Loss (SL):* \`${fmt(messageData.stopLoss)}\`
+• *Take Profit 1 (TP1):* \`${fmt(messageData.takeProfit1 || messageData.target1)}\`
+${messageData.takeProfit2 ? `• *Take Profit 2 (TP2):* \`${fmt(messageData.takeProfit2)}\`\n` : ""}• *Risk : Reward:* \`${messageData.riskReward || "1 : 2.0"}\`
+`;
+    }
+
     const text = `
-${emoji} *ELS TERMINAL ALERT*
+${emoji} *ELS QUANT TRADE SIGNAL* ${emoji}
+━━━━━━━━━━━━━━━━━━
 *Asset:* \`${messageData.symbol || "MARKET"}\` (${messageData.timeframe || "1h"})
-*Signal:* *${(messageData.direction || "ALERT").toUpperCase()}*
-*Details:* ${messageData.text || messageData.detail || "Market trigger activated."}
-${messageData.entry ? `*Entry:* \`${messageData.entry}\` | *SL:* \`${messageData.stopLoss}\` | *TP:* \`${messageData.target1}\`` : ""}
-*Confidence:* ${messageData.confluenceScore || messageData.confidence || "--"}%
-_Time:_ ${new Date().toLocaleTimeString()}
+*Direction:* *${dirText}*
+*Confluence:* \`${messageData.confluenceScore || messageData.confidence || "--"}%\`
+${messageData.setupType ? `*Setup:* _${messageData.setupType}_\n` : ""}${planSection}
+🧠 *SMC & Technical Context:*
+• ${messageData.detail || messageData.text || "High-confluence structure break"}
+━━━━━━━━━━━━━━━━━━
+⏰ _${new Date().toUTCString()} • ELS Terminal_
     `.trim();
 
     const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
@@ -75,7 +115,7 @@ _Time:_ ${new Date().toLocaleTimeString()}
       chat_id: chatId,
       text: text,
       parse_mode: "Markdown"
-    }, { timeout: 5000 });
+    }, { timeout: 7000 });
 
     return { success: true, provider: "Telegram" };
   }

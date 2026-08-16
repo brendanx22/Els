@@ -491,6 +491,12 @@ function createApp(options = {}) {
           direction: setup.bias,
           confluenceScore: setup.confluenceScore,
           price: setup.price,
+          entry: setup.entry,
+          stopLoss: setup.stopLoss,
+          takeProfit1: setup.takeProfit1,
+          takeProfit2: setup.takeProfit2,
+          riskReward: setup.riskReward,
+          setupType: setup.setupType,
           detail: `SMC Status: ${setup.smcStatus} | 24h Change: ${setup.changePercent}% | RSI: ${setup.rsi}`
         };
 
