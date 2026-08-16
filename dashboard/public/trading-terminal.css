@@ -1190,11 +1190,9 @@ body.light-mode .annotation-zone.smc-liquidity {
    PROCESS LOADING — minimal top bar + pill
 ══════════════════════════════════════════ */
 
-/* Subtle page dim — no heavy blur */
+/* Subtle page dim — non-blocking */
 .tv-shell.is-blurred {
-  opacity: 0.6;
-  pointer-events: none;
-  user-select: none;
+  opacity: 0.85;
   transition: opacity 0.2s ease;
 }
 
@@ -1203,7 +1201,7 @@ body.light-mode .annotation-zone.smc-liquidity {
   position: fixed;
   inset: 0;
   z-index: 9999;
-  pointer-events: none;
+  pointer-events: none !important;
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.18s ease, visibility 0.18s ease;

@@ -3391,9 +3391,11 @@
   const processText = document.getElementById("process-loading-text");
   const processSub = document.getElementById("process-loading-sub");
   let loadingTimeout = null;
+  let loadingFailsafe = null;
 
   function showLoadingState(title, subtitle) {
     if (loadingTimeout) clearTimeout(loadingTimeout);
+    if (loadingFailsafe) clearTimeout(loadingFailsafe);
     if (snapshotArea) snapshotArea.classList.add("is-blurred");
     if (processOverlay) {
       if (processText) processText.textContent = title || "Analyzing market structure...";
@@ -3403,17 +3405,19 @@
         processOverlay.classList.add("active");
       });
     }
+    // Hard failsafe: always dismiss loading state after 5 seconds
+    loadingFailsafe = setTimeout(() => {
+      hideLoadingState();
+    }, 5000);
   }
 
   function hideLoadingState() {
+    if (loadingTimeout) clearTimeout(loadingTimeout);
+    if (loadingFailsafe) clearTimeout(loadingFailsafe);
     if (snapshotArea) snapshotArea.classList.remove("is-blurred");
     if (processOverlay) {
       processOverlay.classList.remove("active");
-      loadingTimeout = setTimeout(() => {
-        if (!processOverlay.classList.contains("active")) {
-          processOverlay.hidden = true;
-        }
-      }, 230);
+      processOverlay.hidden = true;
     }
   }
 
@@ -3433,9 +3437,9 @@
         if (statusDetail) statusDetail.textContent = `Analyzing ${symbol}...`;
       }
 
-      const response = await fetch(`/api/market?symbol=${encodeURIComponent(symbol)}&timeframe=${encodeURIComponent(currentTf)}`);
+      const response = await fetchWithTimeout(`/api/market?symbol=${encodeURIComponent(symbol)}&timeframe=${encodeURIComponent(currentTf)}`);
       if (!response.ok) {
-        const errData = await response.json();
+        const errData = await response.json().catch(() => ({}));
         throw new Error(errData.error || `Failed to fetch ${symbol}`);
       }
       const marketData = await response.json();
@@ -3494,7 +3498,7 @@
             if (statusDetail) statusDetail.textContent = `Fetching ${currentSymbol} ${tf}...`;
           }
           
-          const response = await fetch(`/api/market?symbol=${encodeURIComponent(currentSymbol)}&timeframe=${encodeURIComponent(tf)}`);
+          const response = await fetchWithTimeout(`/api/market?symbol=${encodeURIComponent(currentSymbol)}&timeframe=${encodeURIComponent(tf)}`);
           if (!response.ok) throw new Error("Timeframe change failed");
           const marketData = await response.json();
           if (statusCard) {
@@ -3621,7 +3625,7 @@
           if (statusLabel) statusLabel.textContent = "Loading...";
           if (statusDetail) statusDetail.textContent = `Fetching ${initSymbol}...`;
         }
-        const res = await fetch(`/api/market?symbol=${encodeURIComponent(initSymbol)}&timeframe=${encodeURIComponent(initTf)}`);
+        const res = await fetchWithTimeout(`/api/market?symbol=${encodeURIComponent(initSymbol)}&timeframe=${encodeURIComponent(initTf)}`);
         if (!res.ok) throw new Error("Failed to load market data");
         const data = await res.json();
         const sym = data.providerSymbol || initSymbol;
@@ -3901,8 +3905,21 @@
   function loadPaperPortfolio() {
     try {
       const saved = localStorage.getItem(PAPER_STORAGE_KEY);
-      if (saved) paperPortfolio = JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === "object") {
+          paperPortfolio = {
+            balance: typeof parsed.balance === "number" && !isNaN(parsed.balance) ? parsed.balance : 100000,
+            positions: Array.isArray(parsed.positions) ? parsed.positions : [],
+            history: Array.isArray(parsed.history) ? parsed.history : []
+          };
+          return;
+        }
+      }
     } catch (_) {}
+    if (!paperPortfolio || !Array.isArray(paperPortfolio.positions)) {
+      paperPortfolio = { balance: 100000, positions: [], history: [] };
+    }
   }
 
   function savePaperPortfolio() {
@@ -3920,10 +3937,14 @@
     const posContainer = document.getElementById("paper-positions-container");
     const histContainer = document.getElementById("paper-history-container");
 
-    const totalUnrealized = paperPortfolio.positions.reduce((sum, p) => sum + (p.unrealizedPnL || 0), 0);
-    const equity = paperPortfolio.balance + totalUnrealized;
-    const wins = paperPortfolio.history.filter(h => (h.realizedPnL || 0) > 0).length;
-    const totalClosed = paperPortfolio.history.length;
+    const positions = Array.isArray(paperPortfolio.positions) ? paperPortfolio.positions : [];
+    const history = Array.isArray(paperPortfolio.history) ? paperPortfolio.history : [];
+    const balance = typeof paperPortfolio.balance === "number" && !isNaN(paperPortfolio.balance) ? paperPortfolio.balance : 100000;
+
+    const totalUnrealized = positions.reduce((sum, p) => sum + (p.unrealizedPnL || 0), 0);
+    const equity = balance + totalUnrealized;
+    const wins = history.filter(h => (h.realizedPnL || 0) > 0).length;
+    const totalClosed = history.length;
     const winRateStr = totalClosed > 0 ? `${Math.round((wins / totalClosed) * 100)}% (${wins}/${totalClosed})` : "--";
 
     if (balanceEl) balanceEl.textContent = `$${paperPortfolio.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -4147,7 +4168,8 @@
   let selectedRiskPct = 1.0;
 
   function updatePaperEstimates() {
-    const riskAmount = (paperPortfolio.balance * selectedRiskPct / 100);
+    const bal = typeof paperPortfolio?.balance === "number" && !isNaN(paperPortfolio.balance) ? paperPortfolio.balance : 100000;
+    const riskAmount = (bal * selectedRiskPct / 100);
     const tpAmount = riskAmount * 2;
     if (paperEstTp) { paperEstTp.textContent = `+$${tpAmount.toLocaleString(undefined, {minimumFractionDigits:2,maximumFractionDigits:2})}`; }
     if (paperEstSl) { paperEstSl.textContent = `-$${riskAmount.toLocaleString(undefined, {minimumFractionDigits:2,maximumFractionDigits:2})}`; }
