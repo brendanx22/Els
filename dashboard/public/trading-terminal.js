@@ -3209,7 +3209,8 @@
     if (renderedSnapshot?.watch) nextRefresh.textContent = formatTimingSummary(renderedSnapshot.watch);
     if (renderedPayload?.updatedAt) updatedStat.textContent = formatUpdatedStat(renderedPayload.updatedAt);
 
-    if (renderedSnapshot?.watch?.active && (!lastStreamEventAt || Date.now() - lastStreamEventAt > 7000)) {
+    // Only reconnect SSE / poll server on localhost — Vercel has no state to push
+    if (isLocalDev && renderedSnapshot?.watch?.active && (!lastStreamEventAt || Date.now() - lastStreamEventAt > 7000)) {
       fetchSession();
       if (!stream || stream.readyState === window.EventSource.CLOSED) connectStream();
     }
@@ -3370,12 +3371,79 @@
 
   clearLegacyWidgetLocation();
   applyChartModeUi();
-  fetchSession();
-  connectStream();
-  window.setInterval(() => {
-    const streamIsHealthy = stream && stream.readyState === window.EventSource.OPEN && Date.now() - lastStreamEventAt <= 7000;
-    if (!streamIsHealthy) fetchSession();
-  }, config.pollIntervalMs || 3000);
+
+  if (isLocalDev) {
+    // ── LOCAL DEV: full server-push pipeline ────────────────────────────────
+    fetchSession();
+    connectStream();
+    window.setInterval(() => {
+      const streamIsHealthy = stream && stream.readyState === window.EventSource.OPEN && Date.now() - lastStreamEventAt <= 7000;
+      if (!streamIsHealthy) fetchSession();
+    }, config.pollIntervalMs || 3000);
+  } else {
+    // ── PRODUCTION (Vercel): client-driven data fetching ────────────────────
+    // Vercel serverless has NO persistent state — /api/session always returns
+    // defaults (EURUSD/idle). We skip SSE and polling entirely and instead:
+    //   1. On load: fetch the user's saved symbol from localStorage
+    //   2. Auto-refresh: re-fetch the same symbol every 30s for live prices
+    const saved = loadUserSelection();
+    const initSymbol = saved?.symbol || config.defaultSymbol || "EURUSD";
+    const initTf = saved?.timeframe || config.defaultTimeframe || "1h";
+
+    // Initial data fetch
+    (async () => {
+      try {
+        if (statusCard) {
+          statusCard.dataset.tone = "loading";
+          if (statusLabel) statusLabel.textContent = "Loading...";
+          if (statusDetail) statusDetail.textContent = `Fetching ${initSymbol}...`;
+        }
+        const res = await fetch(`/api/market?symbol=${encodeURIComponent(initSymbol)}&timeframe=${encodeURIComponent(initTf)}`);
+        if (!res.ok) throw new Error("Failed to load market data");
+        const data = await res.json();
+        const sym = data.providerSymbol || initSymbol;
+        saveUserSelection(sym, initTf);
+        renderedSnapshot = {
+          selection: { symbol: sym, timeframe: initTf },
+          latest: data,
+          status: { mode: "active", label: "Active", detail: `Viewing ${data.displaySymbol || sym}`, updatedAt: Date.now() },
+          watch: {},
+          version: 1,
+          history: [],
+        };
+        lastRenderKey = "";
+        renderMarket(renderedSnapshot);
+        if (statusCard) {
+          statusCard.dataset.tone = "active";
+          if (statusLabel) statusLabel.textContent = "Active";
+          if (statusDetail) statusDetail.textContent = `Viewing ${data.displaySymbol || sym}`;
+        }
+      } catch (err) {
+        if (statusCard) {
+          statusCard.dataset.tone = "error";
+          if (statusLabel) statusLabel.textContent = "Error";
+          if (statusDetail) statusDetail.textContent = err.message;
+        }
+      }
+    })();
+
+    // Auto-refresh: re-fetch live data for the current symbol every 30s
+    window.setInterval(async () => {
+      const sel = userSelection;
+      if (!sel) return;
+      try {
+        const res = await fetch(`/api/market?symbol=${encodeURIComponent(sel.symbol)}&timeframe=${encodeURIComponent(sel.timeframe)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (renderedSnapshot) {
+          renderedSnapshot.latest = data;
+          renderedSnapshot.selection = sel;
+          lastRenderKey = "";
+          renderMarket(renderedSnapshot);
+        }
+      } catch (_) { /* silent retry next interval */ }
+    }, 30000);
+  }
 })();
 
 // ── PWA Service Worker Registration ──────────────────────────────────────────
