@@ -403,62 +403,131 @@
     }
   }
 
-  // Update pattern display
+  // ── Advanced Patterns Controller ──
   function updatePatternDisplay(patternData) {
-    if (!patternData || !patternList) return;
+    if (!patternList) return;
     
     patternList.innerHTML = "";
-    
-    const patterns = [
-      ...(patternData.candlestick || []).map(p => ({ ...p, name: p.name || 'Candlestick Pattern' })),
-      ...(patternData.chart || []).map(p => ({ ...p, name: p.name || 'Chart Pattern' })),
-      ...(patternData.smartMoney || []).map(p => ({ ...p, name: p.name || 'SMC Concept' })),
-      ...(patternData.divergences || []).map(p => ({ ...p, name: p.name || 'Divergence' })),
-      ...(patternData.harmonic || []).map(p => ({ ...p, name: p.name || 'Harmonic Pattern' })),
-      ...(patternData.wyckoff || []).map(p => ({ ...p, name: p.name || 'Wyckoff Phase' })),
-      ...(patternData.elliott || []).map(p => ({ ...p, name: p.name || 'Elliott Wave' }))
-    ].slice(0, 10);
-    
-    if (patterns.length === 0) {
-      patternList.innerHTML = "<p class='thesis-copy'>No patterns detected.</p>";
+    if (!patternData) {
+      patternList.innerHTML = "<p class='thesis-copy' style='margin:0'>No patterns detected.</p>";
       return;
     }
     
-    patterns.forEach(pattern => {
-      const item = document.createElement("div");
-      item.className = "pattern-item";
-      item.innerHTML = `
-        <span class="pattern-name">${escapeHtml(pattern.name)}</span>
-        <span class="pattern-signal ${pattern.signal}">${pattern.signal}</span>
-      `;
-      patternList.appendChild(item);
-    });
-    
-    const patternCandlestickValue = document.getElementById("pattern-candlestick-value");
-    const patternChartValue = document.getElementById("pattern-chart-value");
-    const patternHarmonicValue = document.getElementById("pattern-harmonic-value");
-    const patternSmcValue = document.getElementById("pattern-smc-value");
+    // Aggregate all patterns with proper normalization
+    const chartPatterns = (patternData.chart || []).map(p => ({
+      name: p.name || 'Chart Pattern',
+      signal: p.signal || (p.type === 'reversal' ? 'bullish' : 'neutral'),
+      category: 'Chart',
+      detail: p.target ? `Target: ${formatPrice(p.target)}` : (p.type || '')
+    }));
 
+    const harmonicPatterns = (patternData.harmonic || []).map(p => ({
+      name: `${p.name || 'Harmonic'} Pattern`,
+      signal: p.signal || 'bullish',
+      category: 'Harmonic',
+      detail: p.completion ? `Completion: ${formatPrice(p.completion)}` : (p.type || '')
+    }));
+
+    const smcPatterns = (patternData.smartMoney || []).map(p => ({
+      name: p.name || 'SMC Concept',
+      signal: p.signal === 'sweep_pending' ? 'neutral' : (p.signal || 'bullish'),
+      category: 'SMC',
+      detail: p.levels && p.levels.length ? `${p.levels[0].type.replace('_', ' ')}: ${formatPrice(p.levels[0].price)}` : (p.type || '')
+    }));
+
+    const wyckoffPatterns = (patternData.wyckoff || []).map(p => ({
+      name: p.name || 'Wyckoff Accumulation',
+      signal: p.signal || 'bullish',
+      category: 'Wyckoff',
+      detail: p.phase ? `Phase ${p.phase}` : ''
+    }));
+
+    const elliottPatterns = (patternData.elliott || []).map(p => ({
+      name: p.name || 'Elliott Wave',
+      signal: p.direction || p.signal || 'bullish',
+      category: 'Elliott',
+      detail: p.pattern || '5-wave structure'
+    }));
+
+    const divergencePatterns = (patternData.divergences || []).map(p => ({
+      name: `${p.type || 'RSI'} Divergence`,
+      signal: p.signal || (p.direction === 'bullish' ? 'bullish' : 'bearish'),
+      category: 'Divergence',
+      detail: p.timeframe || ''
+    }));
+
+    // For candlestick patterns, extract the most recent 4
+    const candleList = patternData.candlestick || [];
+    const recentCandles = candleList.slice(-4).reverse().map(p => ({
+      name: p.name || 'Candlestick Pattern',
+      signal: p.signal || 'neutral',
+      category: 'Candle',
+      detail: p.type || ''
+    }));
+
+    // Prioritize structural patterns first, followed by recent candlestick formations
+    const allPatterns = [
+      ...chartPatterns,
+      ...harmonicPatterns,
+      ...smcPatterns,
+      ...wyckoffPatterns,
+      ...elliottPatterns,
+      ...divergencePatterns,
+      ...recentCandles
+    ];
+
+    if (allPatterns.length === 0) {
+      patternList.innerHTML = "<p class='thesis-copy' style='margin:0'>No patterns detected.</p>";
+    } else {
+      allPatterns.slice(0, 10).forEach(pat => {
+        const item = document.createElement("div");
+        item.className = "pattern-item";
+        
+        let sigClass = "neutral";
+        let sigText = "NEUTRAL";
+        const rawSig = String(pat.signal || "").toLowerCase();
+        if (rawSig.includes("bull")) {
+          sigClass = "bullish";
+          sigText = "BULLISH";
+        } else if (rawSig.includes("bear")) {
+          sigClass = "bearish";
+          sigText = "BEARISH";
+        } else if (rawSig.includes("weak")) {
+          sigClass = "weak";
+          sigText = "WEAK";
+        } else if (rawSig) {
+          sigText = rawSig.toUpperCase().slice(0, 8);
+        }
+
+        item.innerHTML = `
+          <div style="display: flex; flex-direction: column; gap: 2px;">
+            <span class="pattern-name">${escapeHtml(pat.name)}</span>
+            ${pat.detail ? `<span style="font-size: 10px; color: var(--ink-dim);">${escapeHtml(pat.detail)}</span>` : ''}
+          </div>
+          <span class="pattern-signal ${sigClass}">${sigText}</span>
+        `;
+        patternList.appendChild(item);
+      });
+    }
+
+    // Update counter badges
     if (patternCandlestickValue) {
       const candleCount = (patternData.candlestick || []).length;
-      patternCandlestickValue.textContent = candleCount > 0 ? `${candleCount} found` : "--";
+      patternCandlestickValue.textContent = candleCount > 0 ? `${candleCount} found` : "0";
     }
-    
     if (patternChartValue) {
       const chartCount = (patternData.chart || []).length;
-      patternChartValue.textContent = chartCount > 0 ? `${chartCount} found` : "--";
+      patternChartValue.textContent = chartCount > 0 ? `${chartCount} found` : "0";
     }
-    
     if (patternHarmonicValue) {
       const harmonicCount = (patternData.harmonic || []).length;
-      patternHarmonicValue.textContent = harmonicCount > 0 ? `${harmonicCount} found` : "--";
+      patternHarmonicValue.textContent = harmonicCount > 0 ? `${harmonicCount} found` : "0";
     }
-    
     if (patternSmcValue) {
       const smcCount = (patternData.smartMoney || []).length;
-      patternSmcValue.textContent = smcCount > 0 ? `${smcCount} found` : "--";
+      patternSmcValue.textContent = smcCount > 0 ? `${smcCount} found` : "0";
     }
-    
+
     if (featurePatterns) featurePatterns.classList.add("active");
   }
 
@@ -571,77 +640,144 @@
     if (featureMtf) featureMtf.classList.add("active");
   }
 
-  // Draw sentiment timeline
+  // ── Sentiment Timeline Controller ──
+  let cachedSentimentData = null;
+
   function drawSentimentTimeline(sentimentData) {
+    if (sentimentData && Array.isArray(sentimentData) && sentimentData.length > 0) {
+      cachedSentimentData = sentimentData;
+    }
+    
     const canvas = document.getElementById('sentiment-canvas');
     if (!canvas) return;
     
-    const ctx = canvas.getContext('2d');
     const container = document.getElementById('sentiment-timeline-chart');
     if (!container) return;
     
-    canvas.width = container.clientWidth;
-    canvas.height = container.clientHeight;
-    
-    // Draw background
-    ctx.fillStyle = '#141b24';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // Draw grid lines
-    ctx.strokeStyle = '#252b36';
+    const rect = container.getBoundingClientRect();
+    const displayWidth = rect.width > 20 ? rect.width : (container.clientWidth || 320);
+    const displayHeight = rect.height > 20 ? rect.height : (container.clientHeight || 90);
+
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(displayWidth * dpr);
+    canvas.height = Math.round(displayHeight * dpr);
+    canvas.style.width = `${displayWidth}px`;
+    canvas.style.height = `${displayHeight}px`;
+
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+
+    const W = displayWidth;
+    const H = displayHeight;
+
+    // Background
+    ctx.fillStyle = '#0f141e';
+    ctx.fillRect(0, 0, W, H);
+
+    // 50% baseline (Neutral threshold)
+    const midY = H * 0.5;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.setLineDash([4, 4]);
     ctx.lineWidth = 1;
-    for (let i = 0; i < 5; i++) {
-      const y = (canvas.height / 5) * i;
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(canvas.width, y);
-      ctx.stroke();
-    }
-    
-    // Generate dummy sentiment data if none provided
-    const data = sentimentData || [
-      { time: Date.now() - 3600000 * 5, sentiment: 50 },
-      { time: Date.now() - 3600000 * 4, sentiment: 45 },
-      { time: Date.now() - 3600000 * 3, sentiment: 60 },
-      { time: Date.now() - 3600000 * 2, sentiment: 70 },
-      { time: Date.now() - 3600000, sentiment: 65 },
-      { time: Date.now(), sentiment: 75 }
-    ];
-    
-    if (data.length < 2) return;
-    
-    // Draw the line
     ctx.beginPath();
-    ctx.strokeStyle = '#10b981';
-    ctx.lineWidth = 2;
-    
+    ctx.moveTo(10, midY);
+    ctx.lineTo(W - 10, midY);
+    ctx.stroke();
+    ctx.restore();
+
+    // Data points
+    const now = Date.now();
+    const data = cachedSentimentData || [
+      { time: now - 3600000 * 24, sentiment: 50 },
+      { time: now - 3600000 * 18, sentiment: 54 },
+      { time: now - 3600000 * 12, sentiment: 51 },
+      { time: now - 3600000 * 6,  sentiment: 62 },
+      { time: now - 3600000 * 2,  sentiment: 68 },
+      { time: now,                sentiment: 65 }
+    ];
+
+    if (!data || data.length < 2) return;
+
     const minTime = data[0].time;
     const maxTime = data[data.length - 1].time;
     const timeRange = maxTime - minTime || 1;
-    
-    data.forEach((point, index) => {
-      const x = ((point.time - minTime) / timeRange) * (canvas.width - 20) + 10;
-      const y = canvas.height - ((point.sentiment / 100) * (canvas.height - 20) + 10);
-      
-      if (index === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
-      }
+
+    const padX = 14;
+    const padY = 12;
+    const usableW = W - padX * 2;
+    const usableH = H - padY * 2;
+
+    const points = data.map(pt => {
+      const x = padX + ((pt.time - minTime) / timeRange) * usableW;
+      const clampedSent = Math.max(5, Math.min(95, pt.sentiment));
+      const y = H - (padY + (clampedSent / 100) * usableH);
+      return { x, y, sentiment: pt.sentiment };
     });
+
+    // Gradient fill under the curve
+    const latestSent = points[points.length - 1].sentiment;
+    const isBullish = latestSent >= 50;
+    const strokeColor = isBullish ? '#00FF88' : '#f23645';
+
+    const areaGrad = ctx.createLinearGradient(0, padY, 0, H);
+    if (isBullish) {
+      areaGrad.addColorStop(0, 'rgba(0, 255, 136, 0.25)');
+      areaGrad.addColorStop(1, 'rgba(0, 255, 136, 0.00)');
+    } else {
+      areaGrad.addColorStop(0, 'rgba(242, 54, 69, 0.25)');
+      areaGrad.addColorStop(1, 'rgba(242, 54, 69, 0.00)');
+    }
+
+    // Draw filled area
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, H);
+    ctx.lineTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) {
+      const xc = (points[i].x + points[i - 1].x) / 2;
+      const yc = (points[i].y + points[i - 1].y) / 2;
+      ctx.quadraticCurveTo(points[i - 1].x, points[i - 1].y, xc, yc);
+    }
+    ctx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
+    ctx.lineTo(points[points.length - 1].x, H);
+    ctx.closePath();
+    ctx.fillStyle = areaGrad;
+    ctx.fill();
+
+    // Draw main stroke line
+    ctx.beginPath();
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = 2.2;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) {
+      const xc = (points[i].x + points[i - 1].x) / 2;
+      const yc = (points[i].y + points[i - 1].y) / 2;
+      ctx.quadraticCurveTo(points[i - 1].x, points[i - 1].y, xc, yc);
+    }
+    ctx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
     ctx.stroke();
-    
-    // Draw points
-    ctx.fillStyle = '#10b981';
-    data.forEach((point) => {
-      const x = ((point.time - minTime) / timeRange) * (canvas.width - 20) + 10;
-      const y = canvas.height - ((point.sentiment / 100) * (canvas.height - 20) + 10);
-      
+
+    // Draw small glowing dots for key points
+    points.forEach((pt, i) => {
       ctx.beginPath();
-      ctx.arc(x, y, 3, 0, Math.PI * 2);
+      ctx.fillStyle = strokeColor;
+      ctx.arc(pt.x, pt.y, i === points.length - 1 ? 4 : 2.5, 0, Math.PI * 2);
       ctx.fill();
     });
+
+    // Draw current sentiment badge at top right
+    ctx.save();
+    ctx.font = '600 10px Inter, -apple-system, sans-serif';
+    ctx.fillStyle = strokeColor;
+    ctx.textAlign = 'right';
+    ctx.fillText(`${Math.round(latestSent)}% ${isBullish ? 'Bullish' : 'Bearish'}`, W - padX, padY + 2);
+    ctx.restore();
   }
+
+  // Export to window so sidebar tabs can re-trigger on view
+  window.drawSentimentTimeline = drawSentimentTimeline;
 
   // Update signal display
   function updateSignalDisplay(signal) {
@@ -3097,8 +3233,8 @@
     
     renderCommandHistory(snapshot.history || []);
     
-    // Draw sentiment timeline
-    drawSentimentTimeline();
+    // Draw sentiment timeline with live news timeline
+    drawSentimentTimeline(news?.sentimentTimeline || payload.analysis?.news?.sentimentTimeline);
   }
 
   function handleSnapshot(payload) {
@@ -3227,6 +3363,7 @@
 
   window.addEventListener("resize", () => {
     queueAnnotationRender();
+    drawSentimentTimeline();
   });
 
   // ── Global Loading & Blur State Controller ──

@@ -527,6 +527,11 @@
           tab.classList.add('active');
           var pane = document.getElementById('pane-' + tab.dataset.tab);
           if (pane) pane.classList.add('active');
+          if (tab.dataset.tab === 'news' && typeof window.drawSentimentTimeline === 'function') {
+            requestAnimationFrame(function() {
+              window.drawSentimentTimeline();
+            });
+          }
         });
       });
 
