@@ -384,15 +384,32 @@
                   </div>
                 </div>
 
-                <div class="paper-order-actions">
-                  <button class="order-btn buy" id="paper-quick-buy-btn">
-                    <span class="btn-title">🟢 BUY / LONG</span>
-                    <span class="btn-desc">Profit if market goes UP</span>
-                  </button>
-                  <button class="order-btn sell" id="paper-quick-sell-btn">
-                    <span class="btn-title">🔴 SELL / SHORT</span>
-                    <span class="btn-desc">Profit if market goes DOWN</span>
-                  </button>
+                <button class="order-btn" id="paper-open-order-btn" style="width:100%;margin-top:10px;">📈 Open Order (MT5‑Style)</button>
+                <!-- MT5‑Style Order Modal -->
+                <div id="mt5-order-modal" class="modal hidden" role="dialog" aria-modal="true">
+                  <div class="card">
+                    <h3 class="modal-title">New Order – <span id="modal-symbol"></span></h3>
+                    <label for="modal-side">Side</label>
+                    <select id="modal-side">
+                      <option value="BUY">Buy</option>
+                      <option value="SELL">Sell</option>
+                    </select>
+                    <label for="modal-volume">Volume (Lots/Units)</label>
+                    <input type="number" id="modal-volume" min="0.01" step="0.01" value="1" />
+                    <label for="modal-entry">Entry Price</label>
+                    <input type="number" id="modal-entry" step="0.0001" />
+                    <label for="modal-sl">Stop Loss</label>
+                    <input type="number" id="modal-sl" step="0.0001" />
+                    <label for="modal-tp1">Take Profit 1</label>
+                    <input type="number" id="modal-tp1" step="0.0001" />
+                    <label for="modal-tp2">Take Profit 2</label>
+                    <input type="number" id="modal-tp2" step="0.0001" />
+                    <div class="rr-display">R:R <span id="modal-rr">--</span></div>
+                    <div class="modal-actions" style="margin-top:12px;display:flex;justify-content:space-between;">
+                      <button class="action-btn" id="modal-place-order">Place Order</button>
+                      <button class="action-btn cancel" id="modal-cancel-order">Cancel</button>
+                    </div>
+                  </div>
                 </div>
               </div>
 
