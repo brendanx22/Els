@@ -3221,6 +3221,38 @@
     queueAnnotationRender();
   });
 
+  // ── Global Loading & Blur State Controller ──
+  const processOverlay = document.getElementById("process-loading-overlay");
+  const processText = document.getElementById("process-loading-text");
+  const processSub = document.getElementById("process-loading-sub");
+  const snapshotArea = document.getElementById("snapshot-area");
+  let loadingTimeout = null;
+
+  function showLoadingState(title, subtitle) {
+    if (loadingTimeout) clearTimeout(loadingTimeout);
+    if (snapshotArea) snapshotArea.classList.add("is-blurred");
+    if (processOverlay) {
+      if (processText) processText.textContent = title || "Analyzing market structure...";
+      if (processSub) processSub.textContent = subtitle || "Running Qwen 2.5 AI & SMC Engine";
+      processOverlay.hidden = false;
+      requestAnimationFrame(() => {
+        processOverlay.classList.add("active");
+      });
+    }
+  }
+
+  function hideLoadingState() {
+    if (snapshotArea) snapshotArea.classList.remove("is-blurred");
+    if (processOverlay) {
+      processOverlay.classList.remove("active");
+      loadingTimeout = setTimeout(() => {
+        if (!processOverlay.classList.contains("active")) {
+          processOverlay.hidden = true;
+        }
+      }, 230);
+    }
+  }
+
   // Interactive Symbol Search & Timeframe handlers
   const symbolSearchInput = document.getElementById("symbol-search-input");
   const symbolSearchBtn = document.getElementById("symbol-search-btn");
@@ -3230,6 +3262,7 @@
     if (!symbol) return;
     try {
       const currentTf = renderedSnapshot?.selection?.timeframe || "1h";
+      showLoadingState(`Analyzing ${symbol} (${currentTf})`, "Fetching live market data & running Qwen 2.5 AI...");
       if (statusCard) {
         statusCard.dataset.tone = "loading";
         if (statusLabel) statusLabel.textContent = "Loading...";
@@ -3263,6 +3296,8 @@
         if (statusLabel) statusLabel.textContent = "Error";
         if (statusDetail) statusDetail.textContent = err.message;
       }
+    } finally {
+      hideLoadingState();
     }
   }
 
@@ -3288,6 +3323,7 @@
         btn.classList.add("active");
         
         try {
+          showLoadingState(`Switching to ${currentSymbol} ${tf}`, "Calculating SMC levels, fibonacci & indicators...");
           if (statusCard) {
             statusCard.dataset.tone = "loading";
             if (statusLabel) statusLabel.textContent = "Loading...";
@@ -3317,6 +3353,8 @@
             if (statusLabel) statusLabel.textContent = "Error";
             if (statusDetail) statusDetail.textContent = err.message;
           }
+        } finally {
+          hideLoadingState();
         }
       });
     });
@@ -3330,6 +3368,7 @@
     const rawCmd = String(cmd || "").trim();
     if (!rawCmd) return;
     try {
+      showLoadingState("Running Command", `els> ${rawCmd}`);
       if (statusCard) {
         statusCard.dataset.tone = "loading";
         if (statusLabel) statusLabel.textContent = "Running...";
@@ -3372,6 +3411,8 @@
         if (statusLabel) statusLabel.textContent = "Command Error";
         if (statusDetail) statusDetail.textContent = err.message;
       }
+    } finally {
+      hideLoadingState();
     }
   }
 
@@ -3410,6 +3451,7 @@
     // Initial data fetch
     (async () => {
       try {
+        showLoadingState(`Loading ${initSymbol} (${initTf})`, "Initializing ELS Terminal with Qwen 2.5 AI...");
         if (statusCard) {
           statusCard.dataset.tone = "loading";
           if (statusLabel) statusLabel.textContent = "Loading...";
@@ -3441,10 +3483,12 @@
           if (statusLabel) statusLabel.textContent = "Error";
           if (statusDetail) statusDetail.textContent = err.message;
         }
+      } finally {
+        hideLoadingState();
       }
     })();
 
-    // Auto-refresh: re-fetch live data for the current symbol every 30s
+    // Auto-refresh: re-fetch live data for the current symbol every 30s (silent, no full screen blur)
     window.setInterval(async () => {
       const sel = userSelection;
       if (!sel) return;
