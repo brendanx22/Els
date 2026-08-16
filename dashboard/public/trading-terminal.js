@@ -177,7 +177,9 @@
 
   // Initialize WebSocket connection
   function initWebSocket() {
-    const wsUrl = `ws://${window.location.hostname}:3003`;
+    const wsProto = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsPort = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? ":3003" : "";
+    const wsUrl = `${wsProto}//${window.location.hostname}${wsPort}`;
     
     try {
       wsState.socket = new WebSocket(wsUrl);
