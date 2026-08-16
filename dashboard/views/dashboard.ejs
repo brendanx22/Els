@@ -122,6 +122,11 @@
                 <button class="tf-btn" data-tf="4h">4h</button>
                 <button class="tf-btn" data-tf="1d">1d</button>
               </div>
+              <div class="chart-zoom-group">
+                <button id="chart-zoom-in" class="chart-action-btn" type="button" title="Zoom In (+)">🔍 +</button>
+                <button id="chart-zoom-out" class="chart-action-btn" type="button" title="Zoom Out (-)">🔍 −</button>
+                <button id="chart-zoom-reset" class="chart-action-btn" type="button" title="Reset View">⟲</button>
+              </div>
               <button id="rr-tool-btn" class="chart-action-btn" type="button" title="Toggle Risk-to-Reward Box">📐 R:R Tool</button>
               <div class="chart-view-toggle" id="chart-view-toggle" role="tablist" aria-label="Chart mode">
                 <button id="chart-mode-tradingview" class="chart-view-button" type="button">TradingView</button>
@@ -336,43 +341,80 @@
             <!-- ── PAPER TRADING ── -->
             <div class="tab-pane" id="pane-paper">
 
+              <!-- Educational Helper Banner -->
+              <div class="paper-guide-card">
+                <div class="paper-guide-icon">🎮</div>
+                <div class="paper-guide-text">
+                  <strong>Risk-Free Practice Mode ($100k Virtual Cash)</strong>
+                  <p>Pick a trade size below, tap BUY or SELL, and watch your live profit/loss update in real time with zero real money lost!</p>
+                </div>
+              </div>
+
+              <!-- Portfolio Overview -->
               <div class="sidebar-panel">
-                <div class="panel-label">Virtual Portfolio ($100k)</div>
+                <div class="panel-label">Virtual Portfolio</div>
                 <div class="data-grid signal-grid">
-                  <div class="data-cell signal-cell"><span>Balance</span><strong id="paper-balance-value">$100,000.00</strong></div>
-                  <div class="data-cell signal-cell"><span>Equity</span><strong id="paper-equity-value">$100,000.00</strong></div>
-                  <div class="data-cell signal-cell"><span>Open PnL</span><strong id="paper-unrealized-value">$0.00</strong></div>
-                  <div class="data-cell signal-cell"><span>Win Rate</span><strong id="paper-winrate-value">--</strong></div>
+                  <div class="data-cell signal-cell"><span>Account Balance</span><strong id="paper-balance-value">$100,000.00</strong></div>
+                  <div class="data-cell signal-cell"><span>Total Equity</span><strong id="paper-equity-value">$100,000.00</strong></div>
+                  <div class="data-cell signal-cell"><span>Active Profit</span><strong id="paper-unrealized-value">$0.00</strong></div>
+                  <div class="data-cell signal-cell"><span>Win Rate</span><strong id="paper-winrate-value">0% (0 trades)</strong></div>
                 </div>
               </div>
 
+              <!-- 1-Tap Execution Box -->
               <div class="sidebar-panel">
-                <div class="panel-label">Position Size & Risk Calculator</div>
-                <div class="paper-calc-grid">
-                  <div class="paper-input-group">
-                    <label>Risk %</label>
-                    <input type="number" id="calc-risk-pct" value="1.0" step="0.1" min="0.1" max="10" />
-                  </div>
-                  <div class="paper-input-group">
-                    <label>Calculated Lot / Units</label>
-                    <strong id="calc-output-lots" class="calc-highlight">--</strong>
+                <div class="panel-label">1-Tap Trade Entry</div>
+                
+                <div class="paper-risk-section">
+                  <span class="paper-section-title">Select Risk Amount:</span>
+                  <div class="paper-preset-pills" id="paper-preset-pills">
+                    <button class="preset-pill active" data-risk="1.0" data-amount="1000">$1,000 (1%)</button>
+                    <button class="preset-pill" data-risk="2.0" data-amount="2000">$2,000 (2%)</button>
+                    <button class="preset-pill" data-risk="5.0" data-amount="5000">$5,000 (5%)</button>
                   </div>
                 </div>
+
+                <div class="paper-stats-row">
+                  <div class="paper-stat-box">
+                    <span>Target Win (+2%):</span>
+                    <strong class="color-green" id="paper-est-tp">+$2,000.00</strong>
+                  </div>
+                  <div class="paper-stat-box">
+                    <span>Stop Loss (-1%):</span>
+                    <strong class="color-red" id="paper-est-sl">-$1,000.00</strong>
+                  </div>
+                  <div class="paper-stat-box">
+                    <span>Calculated Size:</span>
+                    <strong id="calc-output-lots">1.0 Lots</strong>
+                  </div>
+                </div>
+
                 <div class="paper-order-actions">
-                  <button class="order-btn buy" id="paper-quick-buy-btn">BUY / LONG</button>
-                  <button class="order-btn sell" id="paper-quick-sell-btn">SELL / SHORT</button>
+                  <button class="order-btn buy" id="paper-quick-buy-btn">
+                    <span class="btn-title">🟢 BUY / LONG</span>
+                    <span class="btn-desc">Profit if market goes UP</span>
+                  </button>
+                  <button class="order-btn sell" id="paper-quick-sell-btn">
+                    <span class="btn-title">🔴 SELL / SHORT</span>
+                    <span class="btn-desc">Profit if market goes DOWN</span>
+                  </button>
                 </div>
               </div>
 
+              <!-- Active Open Positions -->
               <div class="sidebar-panel">
-                <div class="panel-label">Active Open Positions</div>
+                <div class="panel-label">Live Active Trades</div>
                 <div id="paper-positions-container" class="paper-positions-list">
-                  <p class="thesis-copy" style="margin:0">No open positions. Use 1-click execute to enter.</p>
+                  <p class="thesis-copy" style="margin:0">No active trades. Tap BUY or SELL above to start practicing!</p>
                 </div>
               </div>
 
+              <!-- Closed Trade Journal & Reset -->
               <div class="sidebar-panel">
-                <div class="panel-label">Closed Trade Journal</div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                  <div class="panel-label" style="margin:0">Trade Journal</div>
+                  <button class="action-btn-mini" id="reset-paper-account-btn">🔄 Reset $100k</button>
+                </div>
                 <div id="paper-history-container" class="paper-history-list">
                   <p class="thesis-copy" style="margin:0">No closed trades yet.</p>
                 </div>

@@ -1555,68 +1555,106 @@ body.light-mode .annotation-zone.smc-liquidity {
   cursor: pointer;
 }
 
-/* ── Paper Trading UI ── */
-.paper-calc-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-bottom: 10px;
+/* ── Mobile Chart Zoom Controls & Touch Frame ── */
+.chart-frame,
+.chart-container,
+#chart-container {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
-.paper-input-group {
+.chart-zoom-group {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  gap: 2px;
 }
-.paper-input-group label {
-  font-size: 10px;
-  color: var(--ink-dim);
-  text-transform: uppercase;
-  font-weight: 600;
+
+/* ── Paper Trading Intuitive Visual UI ── */
+.paper-guide-card {
+  background: rgba(41, 98, 255, 0.08);
+  border: 1px solid rgba(41, 98, 255, 0.2);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
 }
-.paper-input-group input {
-  background: var(--bg-dark);
-  border: 1px solid var(--border);
-  color: var(--ink-bright);
-  font-size: 12px;
-  font-weight: 600;
-  padding: 6px 8px;
-  border-radius: 4px;
-}
-.calc-highlight {
-  font-size: 13px;
+.paper-guide-icon { font-size: 20px; flex-shrink: 0; }
+.paper-guide-text strong { display: block; font-size: 11px; color: var(--ink-bright); margin-bottom: 2px; }
+.paper-guide-text p { margin: 0; font-size: 10px; color: var(--ink-dim); line-height: 1.4; }
+
+.paper-risk-section { margin-bottom: 10px; }
+.paper-section-title { font-size: 10px; text-transform: uppercase; color: var(--ink-dim); font-weight: 700; display: block; margin-bottom: 6px; }
+.paper-preset-pills { display: flex; gap: 6px; }
+.preset-pill {
+  flex: 1;
+  padding: 8px 4px;
+  font-size: 11px;
   font-weight: 700;
-  color: var(--accent);
   background: var(--bg-dark);
-  padding: 6px 8px;
-  border-radius: 4px;
   border: 1px solid var(--border);
+  color: var(--ink);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all var(--transition);
+  text-align: center;
 }
+.preset-pill:hover { border-color: var(--accent); color: var(--ink-bright); }
+.preset-pill.active {
+  background: rgba(41, 98, 255, 0.15);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.paper-stats-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  background: var(--bg-dark);
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  margin-bottom: 10px;
+  font-size: 10px;
+}
+.paper-stat-box span { display: block; color: var(--ink-dim); margin-bottom: 2px; }
+.paper-stat-box strong { font-size: 11px; }
+
 .paper-order-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
 .order-btn {
-  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 10px 6px;
+  border-radius: 6px;
   border: none;
-  font-weight: 700;
-  font-size: 11px;
-  border-radius: 4px;
   cursor: pointer;
-  transition: all var(--transition);
+  transition: transform 0.1s, opacity 0.2s;
 }
+.order-btn:active { transform: scale(0.97); }
 .order-btn.buy { background: #089981; color: #fff; }
 .order-btn.buy:hover { background: #0ebb9d; }
 .order-btn.sell { background: #f23645; color: #fff; }
 .order-btn.sell:hover { background: #ff5263; }
+.order-btn .btn-title { font-size: 12px; font-weight: 800; }
+.order-btn .btn-desc { font-size: 9px; opacity: 0.85; font-weight: 500; }
 
 .paper-pos-card {
   background: var(--bg-dark);
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 10px;
+  padding: 12px;
   margin-bottom: 8px;
+  transition: border-color 0.2s;
 }
+.paper-pos-card:hover { border-color: var(--border-strong); }
 .paper-pos-header {
   display: flex;
   justify-content: space-between;
@@ -1632,11 +1670,21 @@ body.light-mode .annotation-zone.smc-liquidity {
 .pos-side-badge.buy { background: rgba(8, 153, 129, 0.2); color: #089981; }
 .pos-side-badge.sell { background: rgba(242, 54, 69, 0.2); color: #f23645; }
 .pos-pnl {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 800;
 }
 .pos-pnl.profit { color: #089981; }
 .pos-pnl.loss { color: #f23645; }
+.paper-pos-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 8px 0;
+  font-size: 10px;
+  background: var(--surface);
+  padding: 6px 8px;
+  border-radius: 4px;
+}
 .paper-pos-actions {
   display: flex;
   gap: 6px;
@@ -1644,16 +1692,31 @@ body.light-mode .annotation-zone.smc-liquidity {
 }
 .pos-act-btn {
   flex: 1;
-  padding: 5px;
+  padding: 7px 4px;
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 700;
   background: var(--surface);
   border: 1px solid var(--border);
   color: var(--ink);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.pos-act-btn:hover { background: var(--surface-hover); }
+.pos-act-btn.close { color: #f23645; border-color: rgba(242,54,69,0.4); }
+.pos-act-btn.be { color: var(--accent); border-color: rgba(41,98,255,0.4); }
+
+.action-btn-mini {
+  padding: 3px 8px;
+  font-size: 9px;
+  font-weight: 700;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--ink-dim);
   border-radius: 3px;
   cursor: pointer;
 }
-.pos-act-btn.close { color: #f23645; border-color: rgba(242,54,69,0.3); }
+.action-btn-mini:hover { border-color: #ef5350; color: #ef5350; }
 
 /* ── Calendar UI ── */
 .calendar-event-card {

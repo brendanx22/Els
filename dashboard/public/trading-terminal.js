@@ -3938,28 +3938,31 @@
     if (posContainer) {
       posContainer.innerHTML = "";
       if (paperPortfolio.positions.length === 0) {
-        posContainer.innerHTML = `<p class="thesis-copy" style="margin:0">No open positions. Use 1-click execute to enter.</p>`;
+        posContainer.innerHTML = `<p class="thesis-copy" style="margin:0">No active trades. Tap BUY or SELL above to start practicing!</p>`;
       } else {
         paperPortfolio.positions.forEach(pos => {
           const card = document.createElement("div");
           card.className = "paper-pos-card";
           const pnlPos = (pos.unrealizedPnL || 0) >= 0;
+          const slDist = pos.side === "BUY" ? ((pos.currentPrice - pos.stopLoss) / pos.currentPrice * 100).toFixed(2) : ((pos.stopLoss - pos.currentPrice) / pos.currentPrice * 100).toFixed(2);
+          const tpDist = pos.side === "BUY" ? ((pos.takeProfit - pos.currentPrice) / pos.currentPrice * 100).toFixed(2) : ((pos.currentPrice - pos.takeProfit) / pos.currentPrice * 100).toFixed(2);
           card.innerHTML = `
             <div class="paper-pos-header">
               <div>
                 <strong>${escapeHtml(pos.symbol)}</strong>
-                <span class="pos-side-badge ${pos.side.toLowerCase()}">${pos.side} ${pos.lotSize} Lots</span>
+                <span class="pos-side-badge ${pos.side.toLowerCase()}">${pos.side}</span>
               </div>
-              <span class="pos-pnl ${pnlPos ? 'profit' : 'loss'}">${pnlPos ? '+' : ''}$${pos.unrealizedPnL?.toFixed(2)}</span>
+              <span class="pos-pnl ${pnlPos ? 'profit' : 'loss'}">${pnlPos ? '+' : ''}$${(pos.unrealizedPnL || 0).toFixed(2)}</span>
             </div>
-            <div style="font-size:10px;color:var(--ink-dim);display:flex;justify-content:space-between">
-              <span>Entry: ${formatPrice(pos.entryPrice)}</span>
-              <span>SL: ${formatPrice(pos.stopLoss)}</span>
-              <span>TP: ${formatPrice(pos.takeProfit)}</span>
+            <div class="paper-pos-details">
+              <span>Entry: <strong>${formatPrice(pos.entryPrice)}</strong></span>
+              <span>Current: <strong>${formatPrice(pos.currentPrice)}</strong></span>
+              <span style="color:#ef5350">SL: ${formatPrice(pos.stopLoss)} (-${slDist}%)</span>
+              <span style="color:#26a69a">TP: ${formatPrice(pos.takeProfit)} (+${tpDist}%)</span>
             </div>
             <div class="paper-pos-actions">
-              <button class="pos-act-btn" data-be="${pos.id}">Set Breakeven</button>
-              <button class="pos-act-btn close" data-close="${pos.id}">Close Trade</button>
+              <button class="pos-act-btn be" data-be="${pos.id}">📌 Breakeven</button>
+              <button class="pos-act-btn close" data-close="${pos.id}">✕ Close</button>
             </div>
           `;
           posContainer.appendChild(card);
@@ -4071,55 +4074,115 @@
     }
   }
 
-  // Paper Trading Calculator & Quick Order buttons
-  const calcRiskInput = document.getElementById("calc-risk-pct");
+  // ── Mobile Chart Zoom Buttons ──
+  const zoomInBtn = document.getElementById("chart-zoom-in");
+  const zoomOutBtn = document.getElementById("chart-zoom-out");
+  const zoomResetBtn = document.getElementById("chart-zoom-reset");
+
+  if (zoomInBtn) {
+    zoomInBtn.addEventListener("click", () => {
+      const chart = chartState.instance;
+      if (chart && chart.kind === "klinecharts") {
+        chart.zoomAtCoordinate({ x: chartContainer.clientWidth / 2, y: 0 }, 1.3);
+      }
+    });
+  }
+  if (zoomOutBtn) {
+    zoomOutBtn.addEventListener("click", () => {
+      const chart = chartState.instance;
+      if (chart && chart.kind === "klinecharts") {
+        chart.zoomAtCoordinate({ x: chartContainer.clientWidth / 2, y: 0 }, 0.75);
+      }
+    });
+  }
+  if (zoomResetBtn) {
+    zoomResetBtn.addEventListener("click", () => {
+      const chart = chartState.instance;
+      if (chart && chart.kind === "klinecharts") {
+        chart.scrollToRealTime();
+        chart.setBarSpace(8);
+      }
+    });
+  }
+
+  // ── Mobile Pinch-to-Zoom ──
+  (function bindPinchZoom() {
+    if (!chartContainer) return;
+    let lastDist = null;
+    chartContainer.addEventListener("touchstart", (e) => {
+      if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        lastDist = Math.sqrt(dx * dx + dy * dy);
+      }
+    }, { passive: true });
+    chartContainer.addEventListener("touchmove", (e) => {
+      if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (lastDist && Math.abs(dist - lastDist) > 2) {
+          const scaleFactor = dist / lastDist;
+          const chart = chartState.instance;
+          const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+          const chartRect = chartContainer.getBoundingClientRect();
+          if (chart && chart.kind === "klinecharts") {
+            chart.zoomAtCoordinate({ x: cx - chartRect.left, y: 0 }, scaleFactor > 1 ? 1.04 : 0.97);
+          }
+          lastDist = dist;
+        }
+      }
+    }, { passive: true });
+    chartContainer.addEventListener("touchend", () => { lastDist = null; }, { passive: true });
+  })();
+
+  // ── Paper Trading Preset Pills & Quick Order ──
   const calcOutputLots = document.getElementById("calc-output-lots");
   const quickBuyBtn = document.getElementById("paper-quick-buy-btn");
   const quickSellBtn = document.getElementById("paper-quick-sell-btn");
   const paperSignalBtn = document.getElementById("paper-trade-signal-btn");
+  const resetPaperBtn = document.getElementById("reset-paper-account-btn");
+  const paperEstTp = document.getElementById("paper-est-tp");
+  const paperEstSl = document.getElementById("paper-est-sl");
+  let selectedRiskPct = 1.0;
 
-  async function calculateLots() {
-    if (!calcRiskInput || !calcOutputLots) return;
-    const riskPct = Number(calcRiskInput.value || 1.0);
-    const sym = userSelection?.symbol || "EURUSD";
-    const currentPrice = renderedSnapshot?.latest?.snapshot?.price || 1.0;
-    const isCrypto = sym.includes("BTC") || sym.includes("ETH") || sym.includes("SOL");
-    const isGold = sym.includes("XAU") || sym.includes("GOLD");
-    const assetType = isCrypto ? "crypto" : (isGold ? "commodity" : "forex");
-    const stopLoss = currentPrice * (assetType === "crypto" ? 0.98 : 0.995);
-
-    try {
-      const res = await fetch("/api/paper-trading/calc", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          balance: paperPortfolio.balance,
-          riskPercent: riskPct,
-          entry: currentPrice,
-          stopLoss,
-          assetType
-        })
-      });
-      if (res.ok) {
-        const json = await res.json();
-        calcOutputLots.textContent = `${json.lotSize} Lots ($${json.riskAmount} Risk)`;
-      }
-    } catch (_) {}
+  function updatePaperEstimates() {
+    const riskAmount = (paperPortfolio.balance * selectedRiskPct / 100);
+    const tpAmount = riskAmount * 2;
+    if (paperEstTp) { paperEstTp.textContent = `+$${tpAmount.toLocaleString(undefined, {minimumFractionDigits:2,maximumFractionDigits:2})}`; }
+    if (paperEstSl) { paperEstSl.textContent = `-$${riskAmount.toLocaleString(undefined, {minimumFractionDigits:2,maximumFractionDigits:2})}`; }
+    if (calcOutputLots) {
+      const currentPrice = renderedSnapshot?.latest?.snapshot?.price || 1;
+      const sym = userSelection?.symbol || "EURUSD";
+      const isCrypto = sym.includes("BTC") || sym.includes("ETH") || sym.includes("SOL");
+      const units = isCrypto ? (riskAmount / (currentPrice * 0.02)).toFixed(4) : (riskAmount / 10).toFixed(2);
+      calcOutputLots.textContent = `${units} ${isCrypto ? "Units" : "Lots"}`;
+    }
   }
 
-  if (calcRiskInput) calcRiskInput.addEventListener("input", calculateLots);
+  // Bind preset pills
+  const presetPills = document.getElementById("paper-preset-pills");
+  if (presetPills) {
+    presetPills.addEventListener("click", (e) => {
+      const pill = e.target.closest(".preset-pill");
+      if (!pill) return;
+      presetPills.querySelectorAll(".preset-pill").forEach(p => p.classList.remove("active"));
+      pill.classList.add("active");
+      selectedRiskPct = parseFloat(pill.dataset.risk || 1.0);
+      updatePaperEstimates();
+    });
+  }
 
   if (quickBuyBtn) {
     quickBuyBtn.addEventListener("click", () => {
       const sym = userSelection?.symbol || "EURUSD";
       const currentPrice = renderedSnapshot?.latest?.snapshot?.price || 1.0;
+      const riskAmount = paperPortfolio.balance * selectedRiskPct / 100;
+      const isCrypto = sym.includes("BTC") || sym.includes("ETH") || sym.includes("SOL");
+      const units = isCrypto ? parseFloat((riskAmount / (currentPrice * 0.02)).toFixed(4)) : parseFloat((riskAmount / 10).toFixed(2));
       openPaperTrade({
-        symbol: sym,
-        side: "BUY",
-        entryPrice: currentPrice,
-        stopLoss: currentPrice * 0.995,
-        takeProfit: currentPrice * 1.015,
-        lotSize: parseFloat(calcOutputLots?.textContent) || 1.0
+        symbol: sym, side: "BUY", entryPrice: currentPrice,
+        stopLoss: currentPrice * 0.99, takeProfit: currentPrice * 1.02, lotSize: units
       });
     });
   }
@@ -4128,14 +4191,23 @@
     quickSellBtn.addEventListener("click", () => {
       const sym = userSelection?.symbol || "EURUSD";
       const currentPrice = renderedSnapshot?.latest?.snapshot?.price || 1.0;
+      const riskAmount = paperPortfolio.balance * selectedRiskPct / 100;
+      const isCrypto = sym.includes("BTC") || sym.includes("ETH") || sym.includes("SOL");
+      const units = isCrypto ? parseFloat((riskAmount / (currentPrice * 0.02)).toFixed(4)) : parseFloat((riskAmount / 10).toFixed(2));
       openPaperTrade({
-        symbol: sym,
-        side: "SELL",
-        entryPrice: currentPrice,
-        stopLoss: currentPrice * 1.005,
-        takeProfit: currentPrice * 0.985,
-        lotSize: parseFloat(calcOutputLots?.textContent) || 1.0
+        symbol: sym, side: "SELL", entryPrice: currentPrice,
+        stopLoss: currentPrice * 1.01, takeProfit: currentPrice * 0.98, lotSize: units
       });
+    });
+  }
+
+  if (resetPaperBtn) {
+    resetPaperBtn.addEventListener("click", () => {
+      if (!confirm("Reset your virtual account back to $100,000? This will close all trades and clear your journal.")) return;
+      paperPortfolio = { balance: 100000, positions: [], history: [] };
+      savePaperPortfolio();
+      updatePaperPortfolioUI();
+      showToast("🔄 Account reset to $100,000!");
     });
   }
 
@@ -4147,14 +4219,14 @@
       const sigEntry = parseFloat(document.getElementById("signal-entry-value")?.textContent) || currentPrice;
       const sigStop = parseFloat(document.getElementById("signal-stop-value")?.textContent) || (currentPrice * 0.99);
       const sigTp = parseFloat(document.getElementById("signal-target1-value")?.textContent) || (currentPrice * 1.02);
+      const riskAmount = paperPortfolio.balance * selectedRiskPct / 100;
+      const isCrypto = sym.includes("BTC") || sym.includes("ETH") || sym.includes("SOL");
+      const units = isCrypto ? parseFloat((riskAmount / (currentPrice * 0.02)).toFixed(4)) : parseFloat((riskAmount / 10).toFixed(2));
 
       openPaperTrade({
         symbol: sym,
         side: sigDir.toUpperCase().includes("BULL") || sigDir.toUpperCase().includes("BUY") ? "BUY" : "SELL",
-        entryPrice: sigEntry,
-        stopLoss: sigStop,
-        takeProfit: sigTp,
-        lotSize: parseFloat(calcOutputLots?.textContent) || 1.0
+        entryPrice: sigEntry, stopLoss: sigStop, takeProfit: sigTp, lotSize: units
       });
     });
   }
@@ -4387,8 +4459,8 @@
   // Initialize paper portfolio & calendar on boot
   loadPaperPortfolio();
   updatePaperPortfolioUI();
+  updatePaperEstimates();
   updateCalendarAndRisk(userSelection?.symbol || "EURUSD");
-  calculateLots();
 })();
 
 // ── PWA Service Worker Registration ──────────────────────────────────────────
