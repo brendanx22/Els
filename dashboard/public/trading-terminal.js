@@ -222,8 +222,9 @@
           wsState.pingInterval = null;
         }
         
-        // Attempt reconnection
-        if (wsState.reconnectAttempts < wsState.maxReconnectAttempts) {
+        // Attempt reconnection (local dev only)
+        const _isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+        if (_isLocal && wsState.reconnectAttempts < wsState.maxReconnectAttempts) {
           wsState.reconnectAttempts++;
           setTimeout(initWebSocket, wsState.reconnectDelay);
         }
@@ -672,8 +673,11 @@
     if (featureAlerts) featureAlerts.classList.add("active");
   }
 
-  // Initialize WebSocket on startup
-  initWebSocket();
+  // Initialize WebSocket only on localhost — Vercel serverless does not
+  // support persistent WebSocket connections. SSE + polling handles real-time
+  // updates on production automatically.
+  const isLocalDev = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+  if (isLocalDev) initWebSocket();
 
   let renderedSnapshot = null;
   let renderedPayload = null;
