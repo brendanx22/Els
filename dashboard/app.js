@@ -456,13 +456,16 @@ function createApp(options = {}) {
   // Runs automatically via Vercel Cron every 10 minutes or external ping
   app.all("/api/cron/scan", async (req, res) => {
     try {
-      const token = req.query.botToken || serverTelegramConfig.botToken;
-      const chat = req.query.chatId || serverTelegramConfig.chatId;
-      const webhook = req.query.webhookUrl || serverTelegramConfig.discordWebhook;
+      const token = req.query.botToken || serverTelegramConfig.botToken || process.env.TELEGRAM_BOT_TOKEN;
+      const chat = req.query.chatId || serverTelegramConfig.chatId || process.env.TELEGRAM_CHAT_ID;
+      const webhook = req.query.webhookUrl || serverTelegramConfig.discordWebhook || process.env.DISCORD_WEBHOOK_URL;
       const minConf = Number(req.query.minConfluence || serverTelegramConfig.minConfluence || 75);
 
       if (!token && !webhook) {
-        return res.json({ status: "skipped", message: "No Telegram or Discord destination configured yet. Add in terminal More tab or set TELEGRAM_BOT_TOKEN env variable." });
+        return res.json({
+          status: "waiting_for_config",
+          message: "No Telegram or Discord configured yet. You can supply them in the URL query (?botToken=...&chatId=...), set TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID in Vercel env, or enter them in the terminal More tab."
+        });
       }
 
       // Scan all major markets
