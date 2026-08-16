@@ -1568,82 +1568,200 @@ body.light-mode .annotation-zone.smc-liquidity {
   gap: 2px;
 }
 
-/* ── Paper Trading Intuitive Visual UI ── */
-.paper-guide-card {
-  background: rgba(41, 98, 255, 0.08);
-  border: 1px solid rgba(41, 98, 255, 0.2);
+/* ── MT5-Style Order Panel ── */
+.mt5-order-panel {
+  background: var(--bg-dark);
+  border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 10px 12px;
+  padding: 12px;
   margin-bottom: 10px;
+}
+
+.mt5-symbol-header {
   display: flex;
-  gap: 10px;
-  align-items: flex-start;
-}
-.paper-guide-icon { font-size: 20px; flex-shrink: 0; }
-.paper-guide-text strong { display: block; font-size: 11px; color: var(--ink-bright); margin-bottom: 2px; }
-.paper-guide-text p { margin: 0; font-size: 10px; color: var(--ink-dim); line-height: 1.4; }
-
-.paper-risk-section { margin-bottom: 10px; }
-.paper-section-title { font-size: 10px; text-transform: uppercase; color: var(--ink-dim); font-weight: 700; display: block; margin-bottom: 6px; }
-.paper-preset-pills { display: flex; gap: 6px; }
-.preset-pill {
-  flex: 1;
-  padding: 8px 4px;
-  font-size: 11px;
-  font-weight: 700;
-  background: var(--bg-dark);
-  border: 1px solid var(--border);
-  color: var(--ink);
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all var(--transition);
-  text-align: center;
-}
-.preset-pill:hover { border-color: var(--accent); color: var(--ink-bright); }
-.preset-pill.active {
-  background: rgba(41, 98, 255, 0.15);
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.paper-stats-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 6px;
-  background: var(--bg-dark);
-  padding: 8px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 10px;
   margin-bottom: 10px;
-  font-size: 10px;
+  border-bottom: 1px solid var(--border);
 }
-.paper-stat-box span { display: block; color: var(--ink-dim); margin-bottom: 2px; }
-.paper-stat-box strong { font-size: 11px; }
+.mt5-symbol-name {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--ink-bright);
+  letter-spacing: 0.5px;
+}
+.mt5-live-spread {
+  font-size: 10px;
+  color: var(--ink-dim);
+  font-weight: 600;
+}
 
-.paper-order-actions {
+.mt5-field-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.mt5-label {
+  font-size: 11px;
+  color: var(--ink-dim);
+  font-weight: 600;
+  min-width: 70px;
+  flex-shrink: 0;
+}
+.mt5-select {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--ink-bright);
+  padding: 7px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.mt5-select:focus { border-color: var(--accent); }
+
+.mt5-stepper {
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--surface);
+}
+.mt5-step-btn {
+  width: 32px;
+  background: var(--surface-subtle, rgba(255,255,255,0.04));
+  border: none;
+  color: var(--ink-bright);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s;
+  flex-shrink: 0;
+  user-select: none;
+}
+.mt5-step-btn:hover { background: rgba(255,255,255,0.08); }
+.mt5-step-btn:active { background: rgba(255,255,255,0.14); }
+.mt5-step-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  color: var(--ink-bright);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  padding: 7px 4px;
+  outline: none;
+  -moz-appearance: textfield;
+}
+.mt5-step-input::-webkit-outer-spin-button,
+.mt5-step-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.mt5-risk-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 6px;
+  margin: 10px 0;
 }
-.order-btn {
+.mt5-risk-cell {
+  background: var(--surface);
+  border-radius: 4px;
+  padding: 8px;
+  text-align: center;
+}
+.mt5-risk-cell span {
+  display: block;
+  font-size: 9px;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-bottom: 3px;
+  letter-spacing: 0.3px;
+}
+.mt5-risk-cell.loss strong { color: #f23645; font-size: 12px; font-weight: 800; }
+.mt5-risk-cell.profit strong { color: #089981; font-size: 12px; font-weight: 800; }
+
+.mt5-action-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.mt5-exec-btn {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  padding: 10px 6px;
-  border-radius: 6px;
+  padding: 12px 6px;
   border: none;
+  border-radius: 4px;
   cursor: pointer;
-  transition: transform 0.1s, opacity 0.2s;
+  transition: filter 0.12s, transform 0.08s;
 }
-.order-btn:active { transform: scale(0.97); }
-.order-btn.buy { background: #089981; color: #fff; }
-.order-btn.buy:hover { background: #0ebb9d; }
-.order-btn.sell { background: #f23645; color: #fff; }
-.order-btn.sell:hover { background: #ff5263; }
-.order-btn .btn-title { font-size: 12px; font-weight: 800; }
-.order-btn .btn-desc { font-size: 9px; opacity: 0.85; font-weight: 500; }
+.mt5-exec-btn:active { transform: scale(0.97); }
+.mt5-exec-btn.sell {
+  background: #f23645;
+  color: #fff;
+}
+.mt5-exec-btn.sell:hover { filter: brightness(1.12); }
+.mt5-exec-btn.buy {
+  background: #089981;
+  color: #fff;
+}
+.mt5-exec-btn.buy:hover { filter: brightness(1.12); }
+.mt5-exec-label {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+.mt5-exec-price {
+  font-size: 16px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.3px;
+}
+
+.mt5-account-bar {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 4px;
+  background: var(--surface);
+  padding: 8px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+.mt5-acct-cell {
+  text-align: center;
+}
+.mt5-acct-cell span {
+  display: block;
+  font-size: 8px;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  margin-bottom: 2px;
+}
+.mt5-acct-cell strong {
+  font-size: 10px;
+  color: var(--ink-bright);
+  font-weight: 700;
+}
 
 .paper-pos-card {
   background: var(--bg-dark);

@@ -4263,89 +4263,164 @@
     chartContainer.addEventListener("touchend", handleEnd, { passive: true });
     chartContainer.addEventListener("touchcancel", handleEnd, { passive: true });
 
-    // Mouse drag on Price/Time scale for Desktop
-    let isMouseDown = false;
-    chartContainer.addEventListener("mousedown", (e) => {
-      isMouseDown = true;
-      handleStart(e.clientX, e.clientY, 1);
-    });
-    window.addEventListener("mousemove", (e) => {
-      if (isMouseDown) {
-        handleMove(e.clientX, e.clientY);
-      }
-    });
-    window.addEventListener("mouseup", () => {
-      if (isMouseDown) {
-        isMouseDown = false;
-        handleEnd();
-      }
-    });
+    // Desktop: no drag-to-zoom — zoom via scroll-wheel / built-in ApexCharts controls only.
+    // Pinch-to-zoom (touch) is handled above for mobile.
   })();
 
-  // ── Paper Trading Preset Pills & Quick Order ──
-  const calcOutputLots = document.getElementById("calc-output-lots");
-  const quickBuyBtn = document.getElementById("paper-quick-buy-btn");
-  const quickSellBtn = document.getElementById("paper-quick-sell-btn");
-  const paperSignalBtn = document.getElementById("paper-trade-signal-btn");
+  // ── MT5-Style Order Panel Controller ──
+  const mt5OrderType = document.getElementById("mt5-order-type");
+  const mt5Volume = document.getElementById("mt5-volume");
+  const mt5Price = document.getElementById("mt5-price");
+  const mt5StoplimitPrice = document.getElementById("mt5-stoplimit-price");
+  const mt5SL = document.getElementById("mt5-sl");
+  const mt5TP = document.getElementById("mt5-tp");
+  const mt5SymbolName = document.getElementById("mt5-symbol-name");
+  const mt5LiveSpread = document.getElementById("mt5-live-spread");
+  const mt5BidPrice = document.getElementById("mt5-bid-price");
+  const mt5AskPrice = document.getElementById("mt5-ask-price");
+  const mt5EstLoss = document.getElementById("mt5-est-loss");
+  const mt5EstProfit = document.getElementById("mt5-est-profit");
+  const mt5BuyBtn = document.getElementById("mt5-buy-btn");
+  const mt5SellBtn = document.getElementById("mt5-sell-btn");
+  const mt5PriceRow = document.getElementById("mt5-price-row");
+  const mt5StoplimitRow = document.getElementById("mt5-stoplimit-row");
   const resetPaperBtn = document.getElementById("reset-paper-account-btn");
-  const paperEstTp = document.getElementById("paper-est-tp");
-  const paperEstSl = document.getElementById("paper-est-sl");
-  let selectedRiskPct = 1.0;
 
-  function updatePaperEstimates() {
-    const bal = typeof paperPortfolio?.balance === "number" && !isNaN(paperPortfolio.balance) ? paperPortfolio.balance : 100000;
-    const riskAmount = (bal * selectedRiskPct / 100);
-    const tpAmount = riskAmount * 2;
-    if (paperEstTp) { paperEstTp.textContent = `+$${tpAmount.toLocaleString(undefined, {minimumFractionDigits:2,maximumFractionDigits:2})}`; }
-    if (paperEstSl) { paperEstSl.textContent = `-$${riskAmount.toLocaleString(undefined, {minimumFractionDigits:2,maximumFractionDigits:2})}`; }
-    if (calcOutputLots) {
-      const currentPrice = renderedSnapshot?.latest?.snapshot?.price || 1;
-      const sym = userSelection?.symbol || "EURUSD";
-      const isCrypto = sym.includes("BTC") || sym.includes("ETH") || sym.includes("SOL");
-      const units = isCrypto ? (riskAmount / (currentPrice * 0.02)).toFixed(4) : (riskAmount / 10).toFixed(2);
-      calcOutputLots.textContent = `${units} ${isCrypto ? "Units" : "Lots"}`;
+  // Stepper helper: wire +/- buttons for a numeric input
+  function wireStepperButtons(downId, upId, inputEl, stepOverride) {
+    const downBtn = document.getElementById(downId);
+    const upBtn = document.getElementById(upId);
+    if (!downBtn || !upBtn || !inputEl) return;
+    const step = stepOverride || parseFloat(inputEl.step) || 0.01;
+    downBtn.addEventListener("click", () => {
+      const v = parseFloat(inputEl.value) || 0;
+      inputEl.value = Math.max(parseFloat(inputEl.min) || 0, v - step).toFixed(String(step).split(".")[1]?.length || 2);
+      inputEl.dispatchEvent(new Event("input"));
+    });
+    upBtn.addEventListener("click", () => {
+      const v = parseFloat(inputEl.value) || 0;
+      inputEl.value = (v + step).toFixed(String(step).split(".")[1]?.length || 2);
+      inputEl.dispatchEvent(new Event("input"));
+    });
+  }
+
+  wireStepperButtons("mt5-vol-down", "mt5-vol-up", mt5Volume, 0.01);
+  wireStepperButtons("mt5-price-down", "mt5-price-up", mt5Price);
+  wireStepperButtons("mt5-stoplimit-down", "mt5-stoplimit-up", mt5StoplimitPrice);
+  wireStepperButtons("mt5-sl-down", "mt5-sl-up", mt5SL);
+  wireStepperButtons("mt5-tp-down", "mt5-tp-up", mt5TP);
+
+  // Toggle pending-order fields based on order type
+  if (mt5OrderType) {
+    mt5OrderType.addEventListener("change", () => {
+      const type = mt5OrderType.value;
+      const isPending = type !== "MARKET";
+      const isStopLimit = type === "STOP_LIMIT";
+      if (mt5PriceRow) mt5PriceRow.style.display = isPending ? "flex" : "none";
+      if (mt5StoplimitRow) mt5StoplimitRow.style.display = isStopLimit ? "flex" : "none";
+      // Pre-fill price with current market price
+      if (isPending && mt5Price) {
+        const cp = renderedSnapshot?.latest?.snapshot?.price || 0;
+        if (!mt5Price.value || parseFloat(mt5Price.value) === 0) {
+          mt5Price.value = cp.toFixed(getDecimalPlaces());
+        }
+      }
+    });
+  }
+
+  function getDecimalPlaces() {
+    const sym = userSelection?.symbol || "EURUSD";
+    if (sym.includes("JPY")) return 3;
+    if (sym.includes("BTC") || sym.includes("ETH")) return 2;
+    if (sym.includes("XAU")) return 2;
+    return sym.length <= 6 ? 5 : 4;
+  }
+
+  // Update live bid/ask and symbol name on the MT5 panel
+  function updateMT5Panel() {
+    const cp = renderedSnapshot?.latest?.snapshot?.price || 0;
+    const sym = userSelection?.symbol || "EURUSD";
+    const dp = getDecimalPlaces();
+    const pipSize = sym.includes("JPY") ? 0.01 : sym.includes("BTC") || sym.includes("ETH") ? 1 : 0.0001;
+    const halfSpread = pipSize * 0.5;
+
+    if (mt5SymbolName) mt5SymbolName.textContent = sym;
+    if (mt5BidPrice) mt5BidPrice.textContent = (cp - halfSpread).toFixed(dp);
+    if (mt5AskPrice) mt5AskPrice.textContent = (cp + halfSpread).toFixed(dp);
+    if (mt5LiveSpread) {
+      const spreadPips = ((halfSpread * 2) / pipSize).toFixed(1);
+      mt5LiveSpread.textContent = `Spread: ${spreadPips} pts`;
+    }
+
+    // Update estimated loss / profit
+    const vol = parseFloat(mt5Volume?.value) || 1;
+    const sl = parseFloat(mt5SL?.value) || 0;
+    const tp = parseFloat(mt5TP?.value) || 0;
+    const isCrypto = sym.includes("BTC") || sym.includes("ETH") || sym.includes("SOL");
+    const pipVal = isCrypto ? vol : vol * 100000 * pipSize;
+
+    if (sl > 0 && cp > 0) {
+      const slDist = Math.abs(cp - sl);
+      const slPips = slDist / pipSize;
+      const estLoss = isCrypto ? vol * slDist : slPips * (vol * 10);
+      if (mt5EstLoss) mt5EstLoss.textContent = `-$${estLoss.toFixed(2)}`;
+    } else {
+      if (mt5EstLoss) mt5EstLoss.textContent = "$0.00";
+    }
+
+    if (tp > 0 && cp > 0) {
+      const tpDist = Math.abs(tp - cp);
+      const tpPips = tpDist / pipSize;
+      const estProfit = isCrypto ? vol * tpDist : tpPips * (vol * 10);
+      if (mt5EstProfit) mt5EstProfit.textContent = `+$${estProfit.toFixed(2)}`;
+    } else {
+      if (mt5EstProfit) mt5EstProfit.textContent = "$0.00";
     }
   }
 
-  // Bind preset pills
-  const presetPills = document.getElementById("paper-preset-pills");
-  if (presetPills) {
-    presetPills.addEventListener("click", (e) => {
-      const pill = e.target.closest(".preset-pill");
-      if (!pill) return;
-      presetPills.querySelectorAll(".preset-pill").forEach(p => p.classList.remove("active"));
-      pill.classList.add("active");
-      selectedRiskPct = parseFloat(pill.dataset.risk || 1.0);
-      updatePaperEstimates();
+  // Refresh MT5 panel periodically
+  setInterval(updateMT5Panel, 1500);
+  updateMT5Panel();
+
+  // Recalculate estimates when SL/TP/Volume inputs change
+  [mt5SL, mt5TP, mt5Volume].forEach(el => {
+    if (el) el.addEventListener("input", updateMT5Panel);
+  });
+
+  // Execute trade via Buy / Sell buttons
+  function executeMT5Order(side) {
+    const sym = userSelection?.symbol || "EURUSD";
+    const cp = renderedSnapshot?.latest?.snapshot?.price || 1.0;
+    const dp = getDecimalPlaces();
+    const vol = parseFloat(mt5Volume?.value) || 1.0;
+    const orderType = mt5OrderType?.value || "MARKET";
+
+    let entryPrice = cp;
+    if (orderType !== "MARKET") {
+      entryPrice = parseFloat(mt5Price?.value) || cp;
+    }
+
+    const defaultPipSize = sym.includes("JPY") ? 0.01 : sym.includes("BTC") || sym.includes("ETH") ? 1 : 0.0001;
+    const slVal = parseFloat(mt5SL?.value) || (side === "BUY" ? entryPrice - (defaultPipSize * 100) : entryPrice + (defaultPipSize * 100));
+    const tpVal = parseFloat(mt5TP?.value) || (side === "BUY" ? entryPrice + (defaultPipSize * 200) : entryPrice - (defaultPipSize * 200));
+
+    openPaperTrade({
+      symbol: sym,
+      side: side,
+      entryPrice: entryPrice,
+      stopLoss: slVal,
+      takeProfit: tpVal,
+      lotSize: vol
     });
+
+    showToast(`📊 ${orderType} ${side} ${vol} lots ${sym} @ ${entryPrice.toFixed(dp)}`);
   }
 
-  if (quickBuyBtn) {
-    quickBuyBtn.addEventListener("click", () => {
-      const sym = userSelection?.symbol || "EURUSD";
-      const currentPrice = renderedSnapshot?.latest?.snapshot?.price || 1.0;
-      const riskAmount = paperPortfolio.balance * selectedRiskPct / 100;
-      const isCrypto = sym.includes("BTC") || sym.includes("ETH") || sym.includes("SOL");
-      const units = isCrypto ? parseFloat((riskAmount / (currentPrice * 0.02)).toFixed(4)) : parseFloat((riskAmount / 10).toFixed(2));
-      openPaperTrade({
-        symbol: sym, side: "BUY", entryPrice: currentPrice,
-        stopLoss: currentPrice * 0.99, takeProfit: currentPrice * 1.02, lotSize: units
-      });
-    });
+  if (mt5BuyBtn) {
+    mt5BuyBtn.addEventListener("click", () => executeMT5Order("BUY"));
   }
-
-  if (quickSellBtn) {
-    quickSellBtn.addEventListener("click", () => {
-      const sym = userSelection?.symbol || "EURUSD";
-      const currentPrice = renderedSnapshot?.latest?.snapshot?.price || 1.0;
-      const riskAmount = paperPortfolio.balance * selectedRiskPct / 100;
-      const isCrypto = sym.includes("BTC") || sym.includes("ETH") || sym.includes("SOL");
-      const units = isCrypto ? parseFloat((riskAmount / (currentPrice * 0.02)).toFixed(4)) : parseFloat((riskAmount / 10).toFixed(2));
-      openPaperTrade({
-        symbol: sym, side: "SELL", entryPrice: currentPrice,
-        stopLoss: currentPrice * 1.01, takeProfit: currentPrice * 0.98, lotSize: units
-      });
-    });
+  if (mt5SellBtn) {
+    mt5SellBtn.addEventListener("click", () => executeMT5Order("SELL"));
   }
 
   if (resetPaperBtn) {
@@ -4355,26 +4430,6 @@
       savePaperPortfolio();
       updatePaperPortfolioUI();
       showToast("🔄 Account reset to $100,000!");
-    });
-  }
-
-  if (paperSignalBtn) {
-    paperSignalBtn.addEventListener("click", () => {
-      const sym = userSelection?.symbol || "EURUSD";
-      const currentPrice = renderedSnapshot?.latest?.snapshot?.price || 1.0;
-      const sigDir = document.getElementById("signal-direction")?.textContent || "BUY";
-      const sigEntry = parseFloat(document.getElementById("signal-entry-value")?.textContent) || currentPrice;
-      const sigStop = parseFloat(document.getElementById("signal-stop-value")?.textContent) || (currentPrice * 0.99);
-      const sigTp = parseFloat(document.getElementById("signal-target1-value")?.textContent) || (currentPrice * 1.02);
-      const riskAmount = paperPortfolio.balance * selectedRiskPct / 100;
-      const isCrypto = sym.includes("BTC") || sym.includes("ETH") || sym.includes("SOL");
-      const units = isCrypto ? parseFloat((riskAmount / (currentPrice * 0.02)).toFixed(4)) : parseFloat((riskAmount / 10).toFixed(2));
-
-      openPaperTrade({
-        symbol: sym,
-        side: sigDir.toUpperCase().includes("BULL") || sigDir.toUpperCase().includes("BUY") ? "BUY" : "SELL",
-        entryPrice: sigEntry, stopLoss: sigStop, takeProfit: sigTp, lotSize: units
-      });
     });
   }
 

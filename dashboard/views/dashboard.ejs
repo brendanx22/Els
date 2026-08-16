@@ -336,95 +336,134 @@
             <!-- ── PAPER TRADING ── -->
             <div class="tab-pane" id="pane-paper">
 
-              <!-- Educational Helper Banner -->
-              <div class="paper-guide-card">
-                <div class="paper-guide-icon">🎮</div>
-                <div class="paper-guide-text">
-                  <strong>Risk-Free Practice Mode ($100k Virtual Cash)</strong>
-                  <p>Pick a trade size below, tap BUY or SELL, and watch your live profit/loss update in real time with zero real money lost!</p>
-                </div>
-              </div>
+              <!-- MT5-Style Order Panel -->
+              <div class="mt5-order-panel">
 
-              <!-- Portfolio Overview -->
-              <div class="sidebar-panel">
-                <div class="panel-label">Virtual Portfolio</div>
-                <div class="data-grid signal-grid">
-                  <div class="data-cell signal-cell"><span>Account Balance</span><strong id="paper-balance-value">$100,000.00</strong></div>
-                  <div class="data-cell signal-cell"><span>Total Equity</span><strong id="paper-equity-value">$100,000.00</strong></div>
-                  <div class="data-cell signal-cell"><span>Active Profit</span><strong id="paper-unrealized-value">$0.00</strong></div>
-                  <div class="data-cell signal-cell"><span>Win Rate</span><strong id="paper-winrate-value">0% (0 trades)</strong></div>
+                <!-- Symbol + Live Price Header -->
+                <div class="mt5-symbol-header">
+                  <span class="mt5-symbol-name" id="mt5-symbol-name">EURUSD</span>
+                  <span class="mt5-live-spread" id="mt5-live-spread">Spread: --</span>
                 </div>
-              </div>
 
-              <!-- 1-Tap Execution Box -->
-              <div class="sidebar-panel">
-                <div class="panel-label">1-Tap Trade Entry</div>
-                
-                <div class="paper-risk-section">
-                  <span class="paper-section-title">Select Risk Amount:</span>
-                  <div class="paper-preset-pills" id="paper-preset-pills">
-                    <button class="preset-pill active" data-risk="1.0" data-amount="1000">$1,000 (1%)</button>
-                    <button class="preset-pill" data-risk="2.0" data-amount="2000">$2,000 (2%)</button>
-                    <button class="preset-pill" data-risk="5.0" data-amount="5000">$5,000 (5%)</button>
+                <!-- Order Type Selector -->
+                <div class="mt5-field-row">
+                  <label class="mt5-label">Type</label>
+                  <select class="mt5-select" id="mt5-order-type">
+                    <option value="MARKET">Market Execution</option>
+                    <option value="LIMIT">Limit Order</option>
+                    <option value="STOP">Stop Order</option>
+                    <option value="STOP_LIMIT">Stop Limit</option>
+                  </select>
+                </div>
+
+                <!-- Volume (Lots) Stepper -->
+                <div class="mt5-field-row">
+                  <label class="mt5-label">Volume</label>
+                  <div class="mt5-stepper">
+                    <button class="mt5-step-btn" id="mt5-vol-down" aria-label="Decrease volume">−</button>
+                    <input type="number" class="mt5-step-input" id="mt5-volume" value="1.00" min="0.01" step="0.01" />
+                    <button class="mt5-step-btn" id="mt5-vol-up" aria-label="Increase volume">+</button>
                   </div>
                 </div>
 
-                <div class="paper-stats-row">
-                  <div class="paper-stat-box">
-                    <span>Target Win (+2%):</span>
-                    <strong class="color-green" id="paper-est-tp">+$2,000.00</strong>
-                  </div>
-                  <div class="paper-stat-box">
-                    <span>Stop Loss (-1%):</span>
-                    <strong class="color-red" id="paper-est-sl">-$1,000.00</strong>
-                  </div>
-                  <div class="paper-stat-box">
-                    <span>Calculated Size:</span>
-                    <strong id="calc-output-lots">1.0 Lots</strong>
+                <!-- Price (for pending orders) -->
+                <div class="mt5-field-row mt5-pending-field" id="mt5-price-row" style="display:none;">
+                  <label class="mt5-label">Price</label>
+                  <div class="mt5-stepper">
+                    <button class="mt5-step-btn" id="mt5-price-down" aria-label="Decrease price">−</button>
+                    <input type="number" class="mt5-step-input" id="mt5-price" step="0.0001" />
+                    <button class="mt5-step-btn" id="mt5-price-up" aria-label="Increase price">+</button>
                   </div>
                 </div>
 
-                <button class="order-btn" id="paper-open-order-btn" style="width:100%;margin-top:10px;">📈 Open Order (MT5‑Style)</button>
-                <!-- MT5‑Style Order Modal -->
-                <div id="mt5-order-modal" class="modal hidden" role="dialog" aria-modal="true">
-                  <div class="card">
-                    <h3 class="modal-title">New Order – <span id="modal-symbol"></span></h3>
-                    <label for="modal-side">Side</label>
-                    <select id="modal-side">
-                      <option value="BUY">Buy</option>
-                      <option value="SELL">Sell</option>
-                    </select>
-                    <label for="modal-volume">Volume (Lots/Units)</label>
-                    <input type="number" id="modal-volume" min="0.01" step="0.01" value="1" />
-                    <label for="modal-entry">Entry Price</label>
-                    <input type="number" id="modal-entry" step="0.0001" />
-                    <label for="modal-sl">Stop Loss</label>
-                    <input type="number" id="modal-sl" step="0.0001" />
-                    <label for="modal-tp1">Take Profit 1</label>
-                    <input type="number" id="modal-tp1" step="0.0001" />
-                    <label for="modal-tp2">Take Profit 2</label>
-                    <input type="number" id="modal-tp2" step="0.0001" />
-                    <div class="rr-display">R:R <span id="modal-rr">--</span></div>
-                    <div class="modal-actions" style="margin-top:12px;display:flex;justify-content:space-between;">
-                      <button class="action-btn" id="modal-place-order">Place Order</button>
-                      <button class="action-btn cancel" id="modal-cancel-order">Cancel</button>
-                    </div>
+                <!-- Stop Limit Price (for stop-limit orders only) -->
+                <div class="mt5-field-row mt5-pending-field" id="mt5-stoplimit-row" style="display:none;">
+                  <label class="mt5-label">Stop Limit Price</label>
+                  <div class="mt5-stepper">
+                    <button class="mt5-step-btn" id="mt5-stoplimit-down" aria-label="Decrease stop limit">−</button>
+                    <input type="number" class="mt5-step-input" id="mt5-stoplimit-price" step="0.0001" />
+                    <button class="mt5-step-btn" id="mt5-stoplimit-up" aria-label="Increase stop limit">+</button>
                   </div>
                 </div>
-              </div>
+
+                <!-- Stop Loss -->
+                <div class="mt5-field-row">
+                  <label class="mt5-label">Stop Loss</label>
+                  <div class="mt5-stepper">
+                    <button class="mt5-step-btn" id="mt5-sl-down" aria-label="Decrease SL">−</button>
+                    <input type="number" class="mt5-step-input" id="mt5-sl" step="0.0001" placeholder="0.0000" />
+                    <button class="mt5-step-btn" id="mt5-sl-up" aria-label="Increase SL">+</button>
+                  </div>
+                </div>
+
+                <!-- Take Profit -->
+                <div class="mt5-field-row">
+                  <label class="mt5-label">Take Profit</label>
+                  <div class="mt5-stepper">
+                    <button class="mt5-step-btn" id="mt5-tp-down" aria-label="Decrease TP">−</button>
+                    <input type="number" class="mt5-step-input" id="mt5-tp" step="0.0001" placeholder="0.0000" />
+                    <button class="mt5-step-btn" id="mt5-tp-up" aria-label="Increase TP">+</button>
+                  </div>
+                </div>
+
+                <!-- Estimated Risk/Reward Row -->
+                <div class="mt5-risk-row">
+                  <div class="mt5-risk-cell loss">
+                    <span>Estimated Loss</span>
+                    <strong id="mt5-est-loss">$0.00</strong>
+                  </div>
+                  <div class="mt5-risk-cell profit">
+                    <span>Estimated Profit</span>
+                    <strong id="mt5-est-profit">$0.00</strong>
+                  </div>
+                </div>
+
+                <!-- Sell / Buy Buttons -->
+                <div class="mt5-action-row">
+                  <button class="mt5-exec-btn sell" id="mt5-sell-btn">
+                    <span class="mt5-exec-label">Sell</span>
+                    <span class="mt5-exec-price" id="mt5-bid-price">--</span>
+                  </button>
+                  <button class="mt5-exec-btn buy" id="mt5-buy-btn">
+                    <span class="mt5-exec-label">Buy</span>
+                    <span class="mt5-exec-price" id="mt5-ask-price">--</span>
+                  </button>
+                </div>
+
+                <!-- Account Summary Bar -->
+                <div class="mt5-account-bar">
+                  <div class="mt5-acct-cell">
+                    <span>Balance</span>
+                    <strong id="paper-balance-value">$100,000.00</strong>
+                  </div>
+                  <div class="mt5-acct-cell">
+                    <span>Equity</span>
+                    <strong id="paper-equity-value">$100,000.00</strong>
+                  </div>
+                  <div class="mt5-acct-cell">
+                    <span>Floating P/L</span>
+                    <strong id="paper-unrealized-value">$0.00</strong>
+                  </div>
+                  <div class="mt5-acct-cell">
+                    <span>Win Rate</span>
+                    <strong id="paper-winrate-value">0%</strong>
+                  </div>
+                </div>
+
+              </div><!-- /mt5-order-panel -->
 
               <!-- Active Open Positions -->
               <div class="sidebar-panel">
-                <div class="panel-label">Live Active Trades</div>
+                <div class="panel-label">Trade</div>
                 <div id="paper-positions-container" class="paper-positions-list">
-                  <p class="thesis-copy" style="margin:0">No active trades. Tap BUY or SELL above to start practicing!</p>
+                  <p class="thesis-copy" style="margin:0">No active trades.</p>
                 </div>
               </div>
 
               <!-- Closed Trade Journal & Reset -->
               <div class="sidebar-panel">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-                  <div class="panel-label" style="margin:0">Trade Journal</div>
+                  <div class="panel-label" style="margin:0">History</div>
                   <button class="action-btn-mini" id="reset-paper-account-btn">🔄 Reset $100k</button>
                 </div>
                 <div id="paper-history-container" class="paper-history-list">
