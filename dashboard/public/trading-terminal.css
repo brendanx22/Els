@@ -1563,36 +1563,32 @@ body.light-mode .annotation-zone.smc-liquidity {
   user-select: none;
 }
 .chart-zoom-group { display: none !important; }
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
 
 /* ── MT5-Style Order Panel ── */
 .mt5-order-panel {
   background: var(--bg-dark);
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 12px;
-  margin-bottom: 10px;
+  padding: 10px;
+  margin-bottom: 8px;
 }
 
 .mt5-symbol-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-bottom: 10px;
-  margin-bottom: 10px;
+  padding-bottom: 6px;
+  margin-bottom: 8px;
   border-bottom: 1px solid var(--border);
 }
 .mt5-symbol-name {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 800;
   color: var(--ink-bright);
-  letter-spacing: 0.5px;
+  letter-spacing: 0.4px;
 }
 .mt5-live-spread {
-  font-size: 10px;
+  font-size: 9.5px;
   color: var(--ink-dim);
   font-weight: 600;
 }
@@ -1601,13 +1597,14 @@ body.light-mode .annotation-zone.smc-liquidity {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
+  gap: 8px;
 }
 .mt5-label {
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--ink-dim);
   font-weight: 600;
-  min-width: 70px;
+  min-width: 65px;
   flex-shrink: 0;
 }
 .mt5-select {
@@ -1615,11 +1612,12 @@ body.light-mode .annotation-zone.smc-liquidity {
   background: var(--surface);
   border: 1px solid var(--border);
   color: var(--ink-bright);
-  padding: 7px 8px;
+  padding: 5px 8px;
   border-radius: 4px;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 600;
   outline: none;
+  height: 28px;
   transition: border-color 0.15s;
 }
 .mt5-select:focus { border-color: var(--accent); }
@@ -1632,13 +1630,14 @@ body.light-mode .annotation-zone.smc-liquidity {
   border-radius: 4px;
   overflow: hidden;
   background: var(--surface);
+  height: 28px;
 }
 .mt5-step-btn {
-  width: 32px;
+  width: 26px;
   background: var(--surface-subtle, rgba(255,255,255,0.04));
   border: none;
   color: var(--ink-bright);
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
   display: flex;
@@ -1647,6 +1646,7 @@ body.light-mode .annotation-zone.smc-liquidity {
   transition: background 0.12s;
   flex-shrink: 0;
   user-select: none;
+  padding: 0;
 }
 .mt5-step-btn:hover { background: rgba(255,255,255,0.08); }
 .mt5-step-btn:active { background: rgba(255,255,255,0.14); }
@@ -1657,11 +1657,12 @@ body.light-mode .annotation-zone.smc-liquidity {
   border-left: 1px solid var(--border);
   border-right: 1px solid var(--border);
   color: var(--ink-bright);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   text-align: center;
-  padding: 7px 4px;
+  padding: 2px 4px;
   outline: none;
+  min-width: 0;
   -moz-appearance: textfield;
 }
 .mt5-step-input::-webkit-outer-spin-button,
@@ -1673,39 +1674,39 @@ body.light-mode .annotation-zone.smc-liquidity {
 .mt5-risk-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  margin: 10px 0;
+  gap: 5px;
+  margin: 8px 0;
 }
 .mt5-risk-cell {
   background: var(--surface);
   border-radius: 4px;
-  padding: 8px;
+  padding: 5px 6px;
   text-align: center;
 }
 .mt5-risk-cell span {
   display: block;
-  font-size: 9px;
+  font-size: 8px;
   color: var(--ink-dim);
   text-transform: uppercase;
   font-weight: 600;
-  margin-bottom: 3px;
+  margin-bottom: 2px;
   letter-spacing: 0.3px;
 }
-.mt5-risk-cell.loss strong { color: #f23645; font-size: 12px; font-weight: 800; }
-.mt5-risk-cell.profit strong { color: #089981; font-size: 12px; font-weight: 800; }
+.mt5-risk-cell.loss strong { color: #f23645; font-size: 11px; font-weight: 800; }
+.mt5-risk-cell.profit strong { color: #089981; font-size: 11px; font-weight: 800; }
 
 .mt5-action-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 .mt5-exec-btn {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 12px 6px;
+  padding: 7px 6px;
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -1723,25 +1724,25 @@ body.light-mode .annotation-zone.smc-liquidity {
 }
 .mt5-exec-btn.buy:hover { filter: brightness(1.12); }
 .mt5-exec-label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 2px;
+  margin-bottom: 1px;
 }
 .mt5-exec-price {
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.3px;
+  letter-spacing: -0.2px;
 }
 
 .mt5-account-bar {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr 1fr;
-  gap: 4px;
+  gap: 3px;
   background: var(--surface);
-  padding: 8px 6px;
+  padding: 6px 4px;
   border-radius: 4px;
   border: 1px solid var(--border);
 }
@@ -1750,15 +1751,15 @@ body.light-mode .annotation-zone.smc-liquidity {
 }
 .mt5-acct-cell span {
   display: block;
-  font-size: 8px;
+  font-size: 7.5px;
   text-transform: uppercase;
   color: var(--ink-dim);
   font-weight: 600;
   letter-spacing: 0.3px;
-  margin-bottom: 2px;
+  margin-bottom: 1px;
 }
 .mt5-acct-cell strong {
-  font-size: 10px;
+  font-size: 9.5px;
   color: var(--ink-bright);
   font-weight: 700;
 }
@@ -1767,8 +1768,8 @@ body.light-mode .annotation-zone.smc-liquidity {
   background: var(--bg-dark);
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 12px;
-  margin-bottom: 8px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
   transition: border-color 0.2s;
 }
 .paper-pos-card:hover { border-color: var(--border-strong); }
@@ -1776,18 +1777,18 @@ body.light-mode .annotation-zone.smc-liquidity {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 .pos-side-badge {
-  font-size: 9px;
+  font-size: 8.5px;
   font-weight: 800;
-  padding: 2px 6px;
+  padding: 1px 5px;
   border-radius: 3px;
 }
 .pos-side-badge.buy { background: rgba(8, 153, 129, 0.2); color: #089981; }
 .pos-side-badge.sell { background: rgba(242, 54, 69, 0.2); color: #f23645; }
 .pos-pnl {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 800;
 }
 .pos-pnl.profit { color: #089981; }
@@ -1795,22 +1796,22 @@ body.light-mode .annotation-zone.smc-liquidity {
 .paper-pos-details {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  margin: 8px 0;
-  font-size: 10px;
+  gap: 4px;
+  margin: 5px 0;
+  font-size: 9.5px;
   background: var(--surface);
-  padding: 6px 8px;
+  padding: 4px 6px;
   border-radius: 4px;
 }
 .paper-pos-actions {
   display: flex;
-  gap: 6px;
-  margin-top: 8px;
+  gap: 5px;
+  margin-top: 6px;
 }
 .pos-act-btn {
   flex: 1;
-  padding: 7px 4px;
-  font-size: 10px;
+  padding: 5px 4px;
+  font-size: 9.5px;
   font-weight: 700;
   background: var(--surface);
   border: 1px solid var(--border);

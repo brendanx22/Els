@@ -17654,25 +17654,25 @@
     "timeframe": "1h"
   },
   "status": {
-    "detail": "Watching XAUUSD on 1 Hour.",
-    "label": "Live",
-    "mode": "live",
-    "updatedAt": 1786919794378
+    "detail": "Auto-refresh is paused. Use the terminal to resume.",
+    "label": "Paused",
+    "mode": "idle",
+    "updatedAt": 1786921417957
   },
-  "version": 114744,
+  "version": 114745,
   "watch": {
-    "active": true,
-    "ownerId": "session-21692-1786908055216-qjrdks",
-    "ownerSource": "terminal",
-    "nextRefreshAt": 1786919661040,
-    "nextQuoteAt": 1786919794478,
+    "active": false,
+    "ownerId": null,
+    "ownerSource": null,
+    "nextRefreshAt": null,
+    "nextQuoteAt": null,
     "quoteMs": 100,
     "refreshMs": 60000,
     "symbol": "XAUUSD",
     "timeframe": "1h",
     "aiInFlight": false,
-    "aiMs": 300000,
-    "lastAiAt": 1786919601026,
-    "nextAiAt": 1786919901026
+    "aiMs": null,
+    "lastAiAt": null,
+    "nextAiAt": null
   }
 }

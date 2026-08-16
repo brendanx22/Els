@@ -4716,7 +4716,7 @@
   // Initialize paper portfolio & calendar on boot
   loadPaperPortfolio();
   updatePaperPortfolioUI();
-  updatePaperEstimates();
+  if (typeof updateMT5Panel === "function") updateMT5Panel();
   updateCalendarAndRisk(userSelection?.symbol || "EURUSD");
 })();
 
