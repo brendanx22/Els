@@ -3348,7 +3348,23 @@
 
       const updatedSnapshot = await response.json();
       if (webTerminalInput) webTerminalInput.value = "";
-      handleSnapshot(updatedSnapshot);
+
+      // On production: directly render the command result and persist selection
+      if (!isLocalDev && updatedSnapshot) {
+        const sel = updatedSnapshot.selection || userSelection;
+        if (sel) saveUserSelection(sel.symbol, sel.timeframe);
+        renderedSnapshot = updatedSnapshot;
+        lastRenderKey = "";
+        renderMarket(renderedSnapshot);
+        if (statusCard) {
+          statusCard.dataset.tone = "active";
+          if (statusLabel) statusLabel.textContent = "Active";
+          if (statusDetail) statusDetail.textContent = updatedSnapshot.status?.detail || `Ran "${rawCmd}"`;
+        }
+      } else {
+        // On localhost: let handleSnapshot manage it normally
+        handleSnapshot(updatedSnapshot);
+      }
     } catch (err) {
       if (statusCard) {
         statusCard.dataset.tone = "error";

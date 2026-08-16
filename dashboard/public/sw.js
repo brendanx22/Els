@@ -1,4 +1,4 @@
-const CACHE = "els-v3";
+const CACHE = "els-v4";
 const SHELL = [
   "/trading-terminal.css",
   "/trading-terminal.js",
