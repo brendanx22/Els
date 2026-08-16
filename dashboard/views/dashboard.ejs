@@ -456,18 +456,16 @@
 
     </main>
 
-    <!-- ── Process Blur & Loading Overlay ── -->
+    <!-- ── Process Loading Overlay (minimal) ── -->
     <div id="process-loading-overlay" class="process-loading-overlay" aria-hidden="true" hidden>
-      <div class="process-loading-card">
-        <div class="process-loading-logo-wrap">
-          <img src="/els-logo.jpg" alt="ELS Loading" class="process-loading-logo" />
-          <div class="process-loading-spinner"></div>
-        </div>
-        <div class="process-loading-text" id="process-loading-text">Analyzing market structure...</div>
-        <div class="process-loading-sub" id="process-loading-sub">Running Qwen 2.5 AI & SMC Engine</div>
-        <div class="process-loading-progress-bar">
-          <div class="process-loading-progress-fill"></div>
-        </div>
+      <!-- Slim top rail -->
+      <div class="process-loading-bar">
+        <div class="process-loading-bar-fill"></div>
+      </div>
+      <!-- Corner pill -->
+      <div class="process-loading-pill">
+        <div class="process-loading-dot"></div>
+        <span class="process-loading-text" id="process-loading-text">Analyzing...</span>
       </div>
     </div>
 

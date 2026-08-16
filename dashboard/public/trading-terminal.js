@@ -512,24 +512,32 @@
       predictionConfidenceValue.textContent = `${conf}%`;
     }
     
-    // Update probability bars
+    // Update probability bars with level-based coloring
     if (predictive.probabilities) {
       const probs = predictive.probabilities;
-      
-      if (probBullishValue && probBullishFill) {
-        probBullishValue.textContent = `${Math.round(probs.bullish || 0)}%`;
-        probBullishFill.style.setProperty("--fill-percent", `${probs.bullish || 0}%`);
+
+      function applyProbBar(fill, valueEl, rowEl, pct) {
+        const v = Math.round(pct || 0);
+        if (valueEl) valueEl.textContent = `${v}%`;
+        if (fill) fill.style.width = `${v}%`;
+        const level = v >= 60 ? "level-high" : v >= 30 ? "level-med" : "";
+        if (fill) {
+          fill.classList.remove("level-med", "level-high");
+          if (level) fill.classList.add(level);
+        }
+        if (rowEl) {
+          rowEl.classList.remove("level-med", "level-high");
+          if (level) rowEl.classList.add(level);
+        }
       }
-      
-      if (probBearishValue && probBearishFill) {
-        probBearishValue.textContent = `${Math.round(probs.bearish || 0)}%`;
-        probBearishFill.style.setProperty("--fill-percent", `${probs.bearish || 0}%`);
-      }
-      
-      if (probSidewaysValue && probSidewaysFill) {
-        probSidewaysValue.textContent = `${Math.round(probs.sideways || 0)}%`;
-        probSidewaysFill.style.setProperty("--fill-percent", `${probs.sideways || 0}%`);
-      }
+
+      const bullRow = probBullishFill?.closest(".prob-bar");
+      const bearRow = probBearishFill?.closest(".prob-bar");
+      const sideRow = probSidewaysFill?.closest(".prob-bar");
+
+      applyProbBar(probBullishFill,  probBullishValue,  bullRow, probs.bullish);
+      applyProbBar(probBearishFill,  probBearishValue,  bearRow, probs.bearish);
+      applyProbBar(probSidewaysFill, probSidewaysValue, sideRow, probs.sideways);
     }
     
     if (featurePredictive) featurePredictive.classList.add("active");
