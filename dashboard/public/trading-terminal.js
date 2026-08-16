@@ -3727,23 +3727,36 @@
   let screenerActiveCat = "all";
 
   function openScreenerModal() {
-    if (screenerModal) {
-      screenerModal.hidden = false;
-      screenerModal.setAttribute("aria-hidden", "false");
-      fetchScreenerData();
-    }
+    if (!screenerModal) return;
+    screenerModal.hidden = false;
+    screenerModal.removeAttribute("inert");
+    screenerModal.removeAttribute("aria-hidden");
+    // Move focus to close button after paint
+    requestAnimationFrame(() => {
+      if (screenerCloseBtn) screenerCloseBtn.focus();
+    });
+    fetchScreenerData();
   }
 
   function closeScreenerModal() {
-    if (screenerModal) {
-      screenerModal.hidden = true;
-      screenerModal.setAttribute("aria-hidden", "true");
+    if (!screenerModal) return;
+    // Unfocus any element inside the modal before hiding to satisfy WAI-ARIA
+    if (document.activeElement && screenerModal.contains(document.activeElement)) {
+      document.activeElement.blur();
     }
+    if (screenerToggleBtn) screenerToggleBtn.focus();
+    screenerModal.hidden = true;
+    screenerModal.setAttribute("inert", "");
+    screenerModal.removeAttribute("aria-hidden");
   }
 
   if (screenerToggleBtn) screenerToggleBtn.addEventListener("click", openScreenerModal);
   if (screenerCloseBtn) screenerCloseBtn.addEventListener("click", closeScreenerModal);
   if (screenerBackdrop) screenerBackdrop.addEventListener("click", closeScreenerModal);
+  // Close on Escape key
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && screenerModal && !screenerModal.hidden) closeScreenerModal();
+  });
 
   async function fetchScreenerData() {
     if (!screenerTableBody) return;

@@ -477,15 +477,15 @@
       </section><!-- /tv-workspace -->
 
       <!-- ═══════════ MARKET SCREENER MODAL / DRAWER ═══════════ -->
-      <div id="screener-modal" class="screener-modal" aria-hidden="true" hidden>
+      <div id="screener-modal" class="screener-modal" inert hidden>
         <div class="screener-backdrop" id="screener-backdrop"></div>
-        <div class="screener-dialog">
+        <div class="screener-dialog" role="dialog" aria-modal="true" aria-labelledby="screener-dialog-title">
           <div class="screener-header">
             <div class="screener-title-wrap">
-              <span class="screener-title">⚡ Multi-Asset Market Screener</span>
-              <span class="screener-sub">Live quantitative scans across Crypto, Forex & Commodities</span>
+              <span class="screener-title" id="screener-dialog-title">⚡ Multi-Asset Market Screener</span>
+              <span class="screener-sub">Live quantitative scans across Crypto, Forex &amp; Commodities</span>
             </div>
-            <button class="screener-close-btn" id="screener-close-btn" aria-label="Close Screener">×</button>
+            <button class="screener-close-btn" id="screener-close-btn" aria-label="Close Market Screener">×</button>
           </div>
           <div class="screener-toolbar">
             <div class="screener-categories" id="screener-categories">
@@ -590,7 +590,7 @@
     </main>
 
     <!-- ── Process Loading Overlay (minimal) ── -->
-    <div id="process-loading-overlay" class="process-loading-overlay" aria-hidden="true" hidden>
+    <div id="process-loading-overlay" class="process-loading-overlay" inert hidden>
       <!-- Slim top rail -->
       <div class="process-loading-bar">
         <div class="process-loading-bar-fill"></div>
