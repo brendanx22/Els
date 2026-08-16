@@ -73,6 +73,10 @@
         </div>
 
         <div class="topbar-actions">
+          <button class="topbar-btn accent" id="screener-toggle-btn" aria-label="Open Market Screener">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zm8 0A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm-8 8A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3zm8 0A1.5 1.5 0 0 1 10.5 9h3a1.5 1.5 0 0 1 1.5 1.5v3a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 13.5v-3z"/></svg>
+            <span>Screener</span>
+          </button>
           <span class="toolbar-chip" id="watch-state">Paused</span>
           <span class="toolbar-chip" id="next-refresh">Live watch off</span>
           <button class="topbar-btn" id="theme-toggle-btn" aria-label="Toggle theme">
@@ -94,6 +98,15 @@
         <!-- CHART STAGE -->
         <section class="chart-stage chart-stage--tv">
 
+          <!-- High-Impact Macro Risk Warning Banner -->
+          <div id="macro-risk-banner" class="macro-risk-banner" hidden>
+            <div class="macro-risk-content">
+              <span class="macro-risk-icon">⚠️</span>
+              <span id="macro-risk-text" class="macro-risk-text">High-Impact News Release Imminent!</span>
+            </div>
+            <button id="macro-risk-dismiss" class="macro-risk-dismiss" aria-label="Dismiss">×</button>
+          </div>
+
           <div class="chart-toolbar">
             <div class="chart-toolbar-left">
               <div class="toolbar-label">Chart</div>
@@ -109,6 +122,7 @@
                 <button class="tf-btn" data-tf="4h">4h</button>
                 <button class="tf-btn" data-tf="1d">1d</button>
               </div>
+              <button id="rr-tool-btn" class="chart-action-btn" type="button" title="Toggle Risk-to-Reward Box">📐 R:R Tool</button>
               <div class="chart-view-toggle" id="chart-view-toggle" role="tablist" aria-label="Chart mode">
                 <button id="chart-mode-tradingview" class="chart-view-button" type="button">TradingView</button>
                 <button id="chart-mode-local" class="chart-view-button" type="button">Annotated</button>
@@ -164,7 +178,9 @@
             <button class="sidebar-tab active" data-tab="strategy" role="tab">Strategy</button>
             <button class="sidebar-tab" data-tab="patterns" role="tab">Patterns</button>
             <button class="sidebar-tab" data-tab="signals" role="tab">Signals</button>
+            <button class="sidebar-tab" data-tab="paper" role="tab">Paper</button>
             <button class="sidebar-tab" data-tab="news" role="tab">News</button>
+            <button class="sidebar-tab" data-tab="calendar" role="tab">Calendar</button>
             <button class="sidebar-tab" data-tab="more" role="tab">More</button>
           </nav>
 
@@ -269,6 +285,7 @@
                   <div class="data-cell signal-cell"><span>R:R</span><strong id="signal-rr-value">--</strong></div>
                 </div>
                 <p id="signal-catalyst" class="thesis-copy" style="margin-top:8px">--</p>
+                <button class="action-btn-full" id="paper-trade-signal-btn" style="margin-top:10px">⚡ Execute Paper Trade</button>
               </div>
 
               <div class="sidebar-panel">
@@ -315,6 +332,53 @@
 
             </div><!-- /pane-signals -->
 
+            <!-- ── PAPER TRADING ── -->
+            <div class="tab-pane" id="pane-paper">
+
+              <div class="sidebar-panel">
+                <div class="panel-label">Virtual Portfolio ($100k)</div>
+                <div class="data-grid signal-grid">
+                  <div class="data-cell signal-cell"><span>Balance</span><strong id="paper-balance-value">$100,000.00</strong></div>
+                  <div class="data-cell signal-cell"><span>Equity</span><strong id="paper-equity-value">$100,000.00</strong></div>
+                  <div class="data-cell signal-cell"><span>Open PnL</span><strong id="paper-unrealized-value">$0.00</strong></div>
+                  <div class="data-cell signal-cell"><span>Win Rate</span><strong id="paper-winrate-value">--</strong></div>
+                </div>
+              </div>
+
+              <div class="sidebar-panel">
+                <div class="panel-label">Position Size & Risk Calculator</div>
+                <div class="paper-calc-grid">
+                  <div class="paper-input-group">
+                    <label>Risk %</label>
+                    <input type="number" id="calc-risk-pct" value="1.0" step="0.1" min="0.1" max="10" />
+                  </div>
+                  <div class="paper-input-group">
+                    <label>Calculated Lot / Units</label>
+                    <strong id="calc-output-lots" class="calc-highlight">--</strong>
+                  </div>
+                </div>
+                <div class="paper-order-actions">
+                  <button class="order-btn buy" id="paper-quick-buy-btn">BUY / LONG</button>
+                  <button class="order-btn sell" id="paper-quick-sell-btn">SELL / SHORT</button>
+                </div>
+              </div>
+
+              <div class="sidebar-panel">
+                <div class="panel-label">Active Open Positions</div>
+                <div id="paper-positions-container" class="paper-positions-list">
+                  <p class="thesis-copy" style="margin:0">No open positions. Use 1-click execute to enter.</p>
+                </div>
+              </div>
+
+              <div class="sidebar-panel">
+                <div class="panel-label">Closed Trade Journal</div>
+                <div id="paper-history-container" class="paper-history-list">
+                  <p class="thesis-copy" style="margin:0">No closed trades yet.</p>
+                </div>
+              </div>
+
+            </div><!-- /pane-paper -->
+
             <!-- ── NEWS ── -->
             <div class="tab-pane" id="pane-news">
 
@@ -353,48 +417,55 @@
 
             </div><!-- /pane-news -->
 
+            <!-- ── CALENDAR ── -->
+            <div class="tab-pane" id="pane-calendar">
+
+              <div class="sidebar-panel">
+                <div class="panel-label">Macro Economic Horizon</div>
+                <div id="calendar-events-container" class="calendar-events-list">
+                  <p class="thesis-copy" style="margin:0">Loading upcoming economic releases...</p>
+                </div>
+              </div>
+
+            </div><!-- /pane-calendar -->
+
             <!-- ── MORE ── -->
             <div class="tab-pane" id="pane-more">
 
               <div class="sidebar-panel">
-                <div class="panel-label">Advanced Patterns</div>
-                <div class="data-grid signal-grid">
-                  <div class="data-cell signal-cell"><span>Candlestick</span><strong id="pattern-candlestick-value">--</strong></div>
-                  <div class="data-cell signal-cell"><span>Chart</span><strong id="pattern-chart-value">--</strong></div>
-                  <div class="data-cell signal-cell"><span>Harmonic</span><strong id="pattern-harmonic-value">--</strong></div>
-                  <div class="data-cell signal-cell"><span>SMC</span><strong id="pattern-smc-value">--</strong></div>
-                </div>
-                <div class="pattern-list" id="pattern-list">
-                  <p class="thesis-copy" style="margin:0">No patterns detected.</p>
-                </div>
-              </div>
+                <div class="panel-label">🔔 Webhook & Telegram / Discord Alerts</div>
+                <div class="webhook-config-wrap">
+                  <div class="paper-input-group" style="margin-bottom:8px">
+                    <label>Discord Webhook URL</label>
+                    <input type="text" id="cfg-discord-webhook" placeholder="https://discord.com/api/webhooks/..." />
+                  </div>
+                  <button class="action-btn-small" id="test-discord-btn" style="margin-bottom:12px">Test Discord Webhook</button>
 
-              <div class="sidebar-panel alerts-panel">
-                <div class="panel-label">🔔 Recent Alerts</div>
-                <div id="alerts-container" class="alerts-list">
-                  <p class="thesis-copy" style="margin:0">No alerts yet.</p>
+                  <div class="paper-input-group" style="margin-bottom:8px">
+                    <label>Telegram Bot Token</label>
+                    <input type="text" id="cfg-tg-token" placeholder="123456:ABC-DEF..." />
+                  </div>
+                  <div class="paper-input-group" style="margin-bottom:8px">
+                    <label>Telegram Chat ID</label>
+                    <input type="text" id="cfg-tg-chatid" placeholder="@mychannel or -100123..." />
+                  </div>
+                  <button class="action-btn-small" id="test-telegram-btn" style="margin-bottom:12px">Test Telegram Alert</button>
                 </div>
               </div>
 
               <div class="sidebar-panel">
-                <div class="panel-label">WebSocket</div>
+                <div class="panel-label">🔌 Broker Webhook Payload Exporter</div>
+                <p class="thesis-copy" style="margin-bottom:8px">Export standardized JSON payload for MetaTrader (MT4/MT5), Binance, or Bybit bridges:</p>
+                <button class="action-btn-small" id="copy-broker-webhook-btn">📋 Copy Active Setup JSON</button>
+              </div>
+
+              <div class="sidebar-panel">
+                <div class="panel-label">WebSocket Status</div>
                 <div class="data-grid signal-grid">
                   <div class="data-cell signal-cell"><span>Status</span><strong id="ws-status-value" class="color-dim">Disconnected</strong></div>
                   <div class="data-cell signal-cell"><span>Latency</span><strong id="ws-latency-value">--</strong></div>
                   <div class="data-cell signal-cell"><span>Updates</span><strong id="ws-updates-value">0</strong></div>
                   <div class="data-cell signal-cell"><span>Alerts</span><strong id="ws-alerts-value">0</strong></div>
-                </div>
-              </div>
-
-              <div class="sidebar-panel">
-                <div class="panel-label">System Features</div>
-                <div class="feature-list">
-                  <div class="feature-item active" id="feature-news">📰 News</div>
-                  <div class="feature-item active" id="feature-patterns">🎯 Patterns</div>
-                  <div class="feature-item active" id="feature-predictive">🔮 Predictions</div>
-                  <div class="feature-item active" id="feature-mtf">📊 MTF</div>
-                  <div class="feature-item active" id="feature-alerts">🔔 Alerts</div>
-                  <div class="feature-item active" id="feature-ws">🔌 WebSocket</div>
                 </div>
               </div>
 
@@ -404,6 +475,50 @@
         </aside>
 
       </section><!-- /tv-workspace -->
+
+      <!-- ═══════════ MARKET SCREENER MODAL / DRAWER ═══════════ -->
+      <div id="screener-modal" class="screener-modal" aria-hidden="true" hidden>
+        <div class="screener-backdrop" id="screener-backdrop"></div>
+        <div class="screener-dialog">
+          <div class="screener-header">
+            <div class="screener-title-wrap">
+              <span class="screener-title">⚡ Multi-Asset Market Screener</span>
+              <span class="screener-sub">Live quantitative scans across Crypto, Forex & Commodities</span>
+            </div>
+            <button class="screener-close-btn" id="screener-close-btn" aria-label="Close Screener">×</button>
+          </div>
+          <div class="screener-toolbar">
+            <div class="screener-categories" id="screener-categories">
+              <button class="screener-cat-btn active" data-cat="all">All</button>
+              <button class="screener-cat-btn" data-cat="crypto">Crypto</button>
+              <button class="screener-cat-btn" data-cat="forex">Forex</button>
+              <button class="screener-cat-btn" data-cat="commodity">Commodities</button>
+              <button class="screener-cat-btn" data-cat="indices">Indices</button>
+            </div>
+            <input type="text" id="screener-filter-input" class="screener-filter-input" placeholder="Search pair..." />
+          </div>
+          <div class="screener-table-wrap">
+            <table class="screener-table">
+              <thead>
+                <tr>
+                  <th>Asset</th>
+                  <th>Price</th>
+                  <th>24h %</th>
+                  <th>Confluence</th>
+                  <th>AI Bias</th>
+                  <th>SMC Setup</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="screener-table-body">
+                <tr>
+                  <td colspan="7" style="text-align:center;padding:24px;color:var(--ink-dim)">Scanning live markets...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
 
       <!-- ═══════════ BOTTOM BAR ═══════════ -->
       <section class="tv-bottom" id="tv-bottom">

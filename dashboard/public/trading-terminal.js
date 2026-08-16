@@ -3681,6 +3681,11 @@
           lastRenderKey = "";
           renderMarket(renderedSnapshot);
         }
+
+        // Live update open paper trading positions with current price
+        if (data.snapshot?.price) {
+          updatePaperPositionsLive(sel.symbol, data.snapshot.price);
+        }
       } catch (_) {
         /* silent retry next interval */
       } finally {
@@ -3688,6 +3693,587 @@
       }
     }, 4000);
   }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // ── INSTITUTIONAL MODULES CONTROLLERS ──────────────────────────────────────
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // ── 1. Web Audio Alert Chime ──
+  function playAlertChime() {
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+      osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.15); // A5
+      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.36);
+    } catch (_) {}
+  }
+
+  // ── 2. Multi-Asset Market Screener Controller ──
+  const screenerModal = document.getElementById("screener-modal");
+  const screenerToggleBtn = document.getElementById("screener-toggle-btn");
+  const screenerCloseBtn = document.getElementById("screener-close-btn");
+  const screenerBackdrop = document.getElementById("screener-backdrop");
+  const screenerTableBody = document.getElementById("screener-table-body");
+  const screenerFilterInput = document.getElementById("screener-filter-input");
+  let screenerData = [];
+  let screenerActiveCat = "all";
+
+  function openScreenerModal() {
+    if (screenerModal) {
+      screenerModal.hidden = false;
+      screenerModal.setAttribute("aria-hidden", "false");
+      fetchScreenerData();
+    }
+  }
+
+  function closeScreenerModal() {
+    if (screenerModal) {
+      screenerModal.hidden = true;
+      screenerModal.setAttribute("aria-hidden", "true");
+    }
+  }
+
+  if (screenerToggleBtn) screenerToggleBtn.addEventListener("click", openScreenerModal);
+  if (screenerCloseBtn) screenerCloseBtn.addEventListener("click", closeScreenerModal);
+  if (screenerBackdrop) screenerBackdrop.addEventListener("click", closeScreenerModal);
+
+  async function fetchScreenerData() {
+    if (!screenerTableBody) return;
+    try {
+      screenerTableBody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--ink-dim)">Scanning live markets...</td></tr>`;
+      const currentTf = userSelection?.timeframe || "1h";
+      const res = await fetch(`/api/screener?timeframe=${encodeURIComponent(currentTf)}`);
+      if (!res.ok) throw new Error("Failed to scan markets");
+      const json = await res.json();
+      screenerData = json.markets || [];
+      renderScreenerTable();
+    } catch (err) {
+      screenerTableBody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:#f23645">${escapeHtml(err.message)}</td></tr>`;
+    }
+  }
+
+  function renderScreenerTable() {
+    if (!screenerTableBody) return;
+    const query = (screenerFilterInput?.value || "").toLowerCase().trim();
+    const filtered = screenerData.filter(m => {
+      const matchCat = screenerActiveCat === "all" || m.category === screenerActiveCat;
+      const matchQuery = !query || m.symbol.toLowerCase().includes(query) || (m.name && m.name.toLowerCase().includes(query));
+      return matchCat && matchQuery;
+    });
+
+    if (filtered.length === 0) {
+      screenerTableBody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--ink-dim)">No markets matching criteria</td></tr>`;
+      return;
+    }
+
+    screenerTableBody.innerHTML = "";
+    filtered.forEach(m => {
+      const tr = document.createElement("tr");
+      tr.className = "screener-row";
+      const isPos = m.changePercent >= 0;
+      const biasColor = m.bias === "BULLISH" ? "color-green" : (m.bias === "BEARISH" ? "color-red" : "");
+
+      tr.innerHTML = `
+        <td><strong>${escapeHtml(m.displaySymbol || m.symbol)}</strong> <span style="font-size:10px;color:var(--ink-dim)">${escapeHtml(m.name)}</span></td>
+        <td><strong>${formatPrice(m.price)}</strong></td>
+        <td style="color:${isPos ? '#089981' : '#f23645'};font-weight:700">${isPos ? '+' : ''}${m.changePercent}%</td>
+        <td><strong>${m.confluenceScore}%</strong></td>
+        <td class="${biasColor}" style="font-weight:700">${m.bias}</td>
+        <td><span style="font-size:10px;padding:2px 6px;border-radius:3px;background:rgba(255,255,255,0.06)">${escapeHtml(m.smcStatus)}</span></td>
+        <td><button class="screener-jump-btn" data-sym="${m.symbol}">Trade</button></td>
+      `;
+
+      tr.addEventListener("click", () => {
+        executeSymbolChange(m.symbol);
+        closeScreenerModal();
+      });
+
+      screenerTableBody.appendChild(tr);
+    });
+  }
+
+  document.querySelectorAll(".screener-cat-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".screener-cat-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      screenerActiveCat = btn.dataset.cat;
+      renderScreenerTable();
+    });
+  });
+
+  if (screenerFilterInput) {
+    screenerFilterInput.addEventListener("input", renderScreenerTable);
+  }
+
+  // ── 3. Macro Economic Calendar & Risk Banner Controller ──
+  const macroRiskBanner = document.getElementById("macro-risk-banner");
+  const macroRiskText = document.getElementById("macro-risk-text");
+  const macroRiskDismiss = document.getElementById("macro-risk-dismiss");
+  const calendarContainer = document.getElementById("calendar-events-container");
+
+  if (macroRiskDismiss && macroRiskBanner) {
+    macroRiskDismiss.addEventListener("click", () => {
+      macroRiskBanner.hidden = true;
+    });
+  }
+
+  async function updateCalendarAndRisk(symbol) {
+    try {
+      const res = await fetch(`/api/calendar?symbol=${encodeURIComponent(symbol || "EURUSD")}`);
+      if (!res.ok) return;
+      const data = await res.json();
+
+      // Update Risk Warning Banner
+      if (data.risk && data.risk.hasHighImpactRisk && macroRiskBanner && macroRiskText) {
+        macroRiskText.textContent = data.risk.warning;
+        macroRiskBanner.hidden = false;
+      } else if (macroRiskBanner) {
+        macroRiskBanner.hidden = true;
+      }
+
+      // Update Calendar Tab Pane
+      if (calendarContainer && data.events) {
+        calendarContainer.innerHTML = "";
+        data.events.forEach(evt => {
+          const card = document.createElement("div");
+          card.className = "calendar-event-card";
+          card.innerHTML = `
+            <div class="calendar-event-header">
+              <span class="cal-impact-badge ${evt.impact}">${evt.currency} • ${evt.impact.toUpperCase()}</span>
+              <span class="cal-countdown">in ${evt.minutesUntil > 60 ? Math.floor(evt.minutesUntil / 60) + 'h ' + (evt.minutesUntil % 60) + 'm' : evt.minutesUntil + 'm'}</span>
+            </div>
+            <div class="calendar-event-title">${escapeHtml(evt.title)}</div>
+            <div class="calendar-event-meta">
+              <span>Forecast: <strong>${evt.forecast}</strong></span>
+              <span>Prior: <strong>${evt.previous}</strong></span>
+            </div>
+          `;
+          calendarContainer.appendChild(card);
+        });
+      }
+    } catch (_) {}
+  }
+
+  // Hook calendar into symbol switch & tab click
+  const calendarTabBtn = document.querySelector('[data-tab="calendar"]');
+  if (calendarTabBtn) {
+    calendarTabBtn.addEventListener("click", () => {
+      updateCalendarAndRisk(userSelection?.symbol || "EURUSD");
+    });
+  }
+
+  // ── 4. Paper Trading Engine Controller ──
+  const PAPER_STORAGE_KEY = "els_paper_trading_portfolio";
+  let paperPortfolio = {
+    balance: 100000,
+    positions: [],
+    history: []
+  };
+
+  function loadPaperPortfolio() {
+    try {
+      const saved = localStorage.getItem(PAPER_STORAGE_KEY);
+      if (saved) paperPortfolio = JSON.parse(saved);
+    } catch (_) {}
+  }
+
+  function savePaperPortfolio() {
+    try {
+      localStorage.setItem(PAPER_STORAGE_KEY, JSON.stringify(paperPortfolio));
+    } catch (_) {}
+  }
+
+  function updatePaperPortfolioUI() {
+    loadPaperPortfolio();
+    const balanceEl = document.getElementById("paper-balance-value");
+    const equityEl = document.getElementById("paper-equity-value");
+    const unrealizedEl = document.getElementById("paper-unrealized-value");
+    const winrateEl = document.getElementById("paper-winrate-value");
+    const posContainer = document.getElementById("paper-positions-container");
+    const histContainer = document.getElementById("paper-history-container");
+
+    const totalUnrealized = paperPortfolio.positions.reduce((sum, p) => sum + (p.unrealizedPnL || 0), 0);
+    const equity = paperPortfolio.balance + totalUnrealized;
+    const wins = paperPortfolio.history.filter(h => (h.realizedPnL || 0) > 0).length;
+    const totalClosed = paperPortfolio.history.length;
+    const winRateStr = totalClosed > 0 ? `${Math.round((wins / totalClosed) * 100)}% (${wins}/${totalClosed})` : "--";
+
+    if (balanceEl) balanceEl.textContent = `$${paperPortfolio.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    if (equityEl) equityEl.textContent = `$${equity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    if (unrealizedEl) {
+      unrealizedEl.textContent = `${totalUnrealized >= 0 ? '+' : ''}$${totalUnrealized.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      unrealizedEl.style.color = totalUnrealized >= 0 ? '#089981' : '#f23645';
+    }
+    if (winrateEl) winrateEl.textContent = winRateStr;
+
+    // Render Open Positions
+    if (posContainer) {
+      posContainer.innerHTML = "";
+      if (paperPortfolio.positions.length === 0) {
+        posContainer.innerHTML = `<p class="thesis-copy" style="margin:0">No open positions. Use 1-click execute to enter.</p>`;
+      } else {
+        paperPortfolio.positions.forEach(pos => {
+          const card = document.createElement("div");
+          card.className = "paper-pos-card";
+          const pnlPos = (pos.unrealizedPnL || 0) >= 0;
+          card.innerHTML = `
+            <div class="paper-pos-header">
+              <div>
+                <strong>${escapeHtml(pos.symbol)}</strong>
+                <span class="pos-side-badge ${pos.side.toLowerCase()}">${pos.side} ${pos.lotSize} Lots</span>
+              </div>
+              <span class="pos-pnl ${pnlPos ? 'profit' : 'loss'}">${pnlPos ? '+' : ''}$${pos.unrealizedPnL?.toFixed(2)}</span>
+            </div>
+            <div style="font-size:10px;color:var(--ink-dim);display:flex;justify-content:space-between">
+              <span>Entry: ${formatPrice(pos.entryPrice)}</span>
+              <span>SL: ${formatPrice(pos.stopLoss)}</span>
+              <span>TP: ${formatPrice(pos.takeProfit)}</span>
+            </div>
+            <div class="paper-pos-actions">
+              <button class="pos-act-btn" data-be="${pos.id}">Set Breakeven</button>
+              <button class="pos-act-btn close" data-close="${pos.id}">Close Trade</button>
+            </div>
+          `;
+          posContainer.appendChild(card);
+        });
+
+        // Add action listeners
+        posContainer.querySelectorAll("[data-close]").forEach(btn => {
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            closePaperTrade(btn.dataset.close);
+          });
+        });
+        posContainer.querySelectorAll("[data-be]").forEach(btn => {
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            setPaperBreakeven(btn.dataset.be);
+          });
+        });
+      }
+    }
+
+    // Render Closed History
+    if (histContainer) {
+      histContainer.innerHTML = "";
+      if (paperPortfolio.history.length === 0) {
+        histContainer.innerHTML = `<p class="thesis-copy" style="margin:0">No closed trades yet.</p>`;
+      } else {
+        paperPortfolio.history.slice(0, 10).forEach(h => {
+          const row = document.createElement("div");
+          row.style.cssText = "display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border-subtle);font-size:10px;";
+          const isProf = (h.realizedPnL || 0) >= 0;
+          row.innerHTML = `
+            <span><strong>${escapeHtml(h.symbol)}</strong> (${h.side})</span>
+            <span style="color:${isProf ? '#089981' : '#f23645'};font-weight:700">${isProf ? '+' : ''}$${h.realizedPnL?.toFixed(2)} (${h.closeReason || 'MANUAL'})</span>
+          `;
+          histContainer.appendChild(row);
+        });
+      }
+    }
+  }
+
+  function updatePaperPositionsLive(symbol, currentPrice) {
+    if (!paperPortfolio.positions.length) return;
+    let changed = false;
+    paperPortfolio.positions.forEach(pos => {
+      if (pos.symbol === symbol) {
+        pos.currentPrice = currentPrice;
+        const diff = pos.side === "BUY" ? currentPrice - pos.entryPrice : pos.entryPrice - currentPrice;
+        let pnl = 0;
+        if (symbol.includes("BTC") || symbol.includes("ETH") || symbol.includes("SOL")) {
+          pnl = diff * pos.lotSize;
+        } else if (symbol.includes("XAU") || symbol.includes("GOLD")) {
+          pnl = diff * pos.lotSize * 100;
+        } else {
+          pnl = (diff * 10000) * (pos.lotSize * 10);
+        }
+        pos.unrealizedPnL = Number(pnl.toFixed(2));
+        changed = true;
+      }
+    });
+    if (changed) {
+      savePaperPortfolio();
+      updatePaperPortfolioUI();
+    }
+  }
+
+  function openPaperTrade(order) {
+    const pos = {
+      id: `pos-${Date.now()}`,
+      symbol: order.symbol,
+      side: order.side.toUpperCase(),
+      entryPrice: Number(order.entryPrice),
+      currentPrice: Number(order.entryPrice),
+      stopLoss: Number(order.stopLoss || (order.entryPrice * 0.99)),
+      takeProfit: Number(order.takeProfit || (order.entryPrice * 1.02)),
+      lotSize: Number(order.lotSize || 1.0),
+      unrealizedPnL: 0,
+      openedAt: Date.now()
+    };
+    paperPortfolio.positions.push(pos);
+    savePaperPortfolio();
+    updatePaperPortfolioUI();
+    playAlertChime();
+    showToast(`Executed Paper Trade: ${pos.side} ${pos.symbol} (${pos.lotSize} Lots)`);
+  }
+
+  function closePaperTrade(posId) {
+    const idx = paperPortfolio.positions.findIndex(p => p.id === posId);
+    if (idx === -1) return;
+    const pos = paperPortfolio.positions[idx];
+    pos.realizedPnL = pos.unrealizedPnL || 0;
+    pos.closedAt = Date.now();
+    pos.closeReason = "MANUAL";
+    paperPortfolio.balance += pos.realizedPnL;
+    paperPortfolio.history.unshift(pos);
+    paperPortfolio.positions.splice(idx, 1);
+    savePaperPortfolio();
+    updatePaperPortfolioUI();
+    showToast(`Closed Trade ${pos.symbol}: ${pos.realizedPnL >= 0 ? '+' : ''}$${pos.realizedPnL.toFixed(2)}`);
+  }
+
+  function setPaperBreakeven(posId) {
+    const pos = paperPortfolio.positions.find(p => p.id === posId);
+    if (pos) {
+      pos.stopLoss = pos.entryPrice;
+      savePaperPortfolio();
+      updatePaperPortfolioUI();
+      showToast(`Stop Loss Moved to Breakeven (${formatPrice(pos.entryPrice)})`);
+    }
+  }
+
+  // Paper Trading Calculator & Quick Order buttons
+  const calcRiskInput = document.getElementById("calc-risk-pct");
+  const calcOutputLots = document.getElementById("calc-output-lots");
+  const quickBuyBtn = document.getElementById("paper-quick-buy-btn");
+  const quickSellBtn = document.getElementById("paper-quick-sell-btn");
+  const paperSignalBtn = document.getElementById("paper-trade-signal-btn");
+
+  async function calculateLots() {
+    if (!calcRiskInput || !calcOutputLots) return;
+    const riskPct = Number(calcRiskInput.value || 1.0);
+    const sym = userSelection?.symbol || "EURUSD";
+    const currentPrice = renderedSnapshot?.latest?.snapshot?.price || 1.0;
+    const isCrypto = sym.includes("BTC") || sym.includes("ETH") || sym.includes("SOL");
+    const isGold = sym.includes("XAU") || sym.includes("GOLD");
+    const assetType = isCrypto ? "crypto" : (isGold ? "commodity" : "forex");
+    const stopLoss = currentPrice * (assetType === "crypto" ? 0.98 : 0.995);
+
+    try {
+      const res = await fetch("/api/paper-trading/calc", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          balance: paperPortfolio.balance,
+          riskPercent: riskPct,
+          entry: currentPrice,
+          stopLoss,
+          assetType
+        })
+      });
+      if (res.ok) {
+        const json = await res.json();
+        calcOutputLots.textContent = `${json.lotSize} Lots ($${json.riskAmount} Risk)`;
+      }
+    } catch (_) {}
+  }
+
+  if (calcRiskInput) calcRiskInput.addEventListener("input", calculateLots);
+
+  if (quickBuyBtn) {
+    quickBuyBtn.addEventListener("click", () => {
+      const sym = userSelection?.symbol || "EURUSD";
+      const currentPrice = renderedSnapshot?.latest?.snapshot?.price || 1.0;
+      openPaperTrade({
+        symbol: sym,
+        side: "BUY",
+        entryPrice: currentPrice,
+        stopLoss: currentPrice * 0.995,
+        takeProfit: currentPrice * 1.015,
+        lotSize: parseFloat(calcOutputLots?.textContent) || 1.0
+      });
+    });
+  }
+
+  if (quickSellBtn) {
+    quickSellBtn.addEventListener("click", () => {
+      const sym = userSelection?.symbol || "EURUSD";
+      const currentPrice = renderedSnapshot?.latest?.snapshot?.price || 1.0;
+      openPaperTrade({
+        symbol: sym,
+        side: "SELL",
+        entryPrice: currentPrice,
+        stopLoss: currentPrice * 1.005,
+        takeProfit: currentPrice * 0.985,
+        lotSize: parseFloat(calcOutputLots?.textContent) || 1.0
+      });
+    });
+  }
+
+  if (paperSignalBtn) {
+    paperSignalBtn.addEventListener("click", () => {
+      const sym = userSelection?.symbol || "EURUSD";
+      const currentPrice = renderedSnapshot?.latest?.snapshot?.price || 1.0;
+      const sigDir = document.getElementById("signal-direction")?.textContent || "BUY";
+      const sigEntry = parseFloat(document.getElementById("signal-entry-value")?.textContent) || currentPrice;
+      const sigStop = parseFloat(document.getElementById("signal-stop-value")?.textContent) || (currentPrice * 0.99);
+      const sigTp = parseFloat(document.getElementById("signal-target1-value")?.textContent) || (currentPrice * 1.02);
+
+      openPaperTrade({
+        symbol: sym,
+        side: sigDir.toUpperCase().includes("BULL") || sigDir.toUpperCase().includes("BUY") ? "BUY" : "SELL",
+        entryPrice: sigEntry,
+        stopLoss: sigStop,
+        takeProfit: sigTp,
+        lotSize: parseFloat(calcOutputLots?.textContent) || 1.0
+      });
+    });
+  }
+
+  // ── 5. Telegram & Discord Webhooks & Broker Export Controller ──
+  const cfgDiscordWebhook = document.getElementById("cfg-discord-webhook");
+  const cfgTgToken = document.getElementById("cfg-tg-token");
+  const cfgTgChatId = document.getElementById("cfg-tg-chatid");
+  const testDiscordBtn = document.getElementById("test-discord-btn");
+  const testTgBtn = document.getElementById("test-telegram-btn");
+  const copyBrokerBtn = document.getElementById("copy-broker-webhook-btn");
+
+  if (testDiscordBtn && cfgDiscordWebhook) {
+    testDiscordBtn.addEventListener("click", async () => {
+      const webhookUrl = cfgDiscordWebhook.value.trim();
+      if (!webhookUrl) return alert("Please enter your Discord Webhook URL");
+      try {
+        testDiscordBtn.textContent = "Sending Test...";
+        const res = await fetch("/api/alerts/test", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "discord", webhookUrl })
+        });
+        const data = await res.json();
+        if (res.ok) alert("✅ Discord Webhook Test Sent Successfully!");
+        else alert(`❌ Error: ${data.error}`);
+      } catch (err) {
+        alert(`❌ Error: ${err.message}`);
+      } finally {
+        testDiscordBtn.textContent = "Test Discord Webhook";
+      }
+    });
+  }
+
+  if (testTgBtn && cfgTgToken && cfgTgChatId) {
+    testTgBtn.addEventListener("click", async () => {
+      const botToken = cfgTgToken.value.trim();
+      const chatId = cfgTgChatId.value.trim();
+      if (!botToken || !chatId) return alert("Please enter both Telegram Bot Token and Chat ID");
+      try {
+        testTgBtn.textContent = "Sending Test...";
+        const res = await fetch("/api/alerts/test", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "telegram", botToken, chatId })
+        });
+        const data = await res.json();
+        if (res.ok) alert("✅ Telegram Alert Test Sent Successfully!");
+        else alert(`❌ Error: ${data.error}`);
+      } catch (err) {
+        alert(`❌ Error: ${err.message}`);
+      } finally {
+        testTgBtn.textContent = "Test Telegram Alert";
+      }
+    });
+  }
+
+  if (copyBrokerBtn) {
+    copyBrokerBtn.addEventListener("click", () => {
+      const sym = userSelection?.symbol || "EURUSD";
+      const currentPrice = renderedSnapshot?.latest?.snapshot?.price || 1.0;
+      const setups = renderedSnapshot?.latest?.analysis?.setups || [];
+      const setup = setups[0] || {
+        direction: "bullish",
+        entry: currentPrice,
+        stopLoss: currentPrice * 0.995,
+        target1: currentPrice * 1.015
+      };
+
+      const payload = {
+        action: setup.direction?.toLowerCase().includes("bull") ? "BUY" : "SELL",
+        symbol: sym,
+        orderType: "LIMIT",
+        price: setup.entry,
+        stopLoss: setup.stopLoss,
+        takeProfit: setup.target1 || setup.target,
+        riskPercentage: 1.0,
+        comment: "ELS_AI_QUANT_SETUP",
+        timestamp: Date.now()
+      };
+
+      navigator.clipboard.writeText(JSON.stringify(payload, null, 2)).then(() => {
+        alert("✅ Copied MT4/MT5/Binance Webhook JSON to clipboard!");
+      });
+    });
+  }
+
+  // ── 6. Long / Short Risk-Reward Tool Toggle on Chart Stage ──
+  const rrToolBtn = document.getElementById("rr-tool-btn");
+  let isRrToolActive = false;
+
+  if (rrToolBtn) {
+    rrToolBtn.addEventListener("click", () => {
+      isRrToolActive = !isRrToolActive;
+      rrToolBtn.classList.toggle("active", isRrToolActive);
+      const annotLayer = document.getElementById("chart-annotation-layer");
+      if (!annotLayer) return;
+
+      if (isRrToolActive) {
+        const currentPrice = renderedSnapshot?.latest?.snapshot?.price || 100;
+        const tp = currentPrice * 1.02;
+        const sl = currentPrice * 0.99;
+        const rr = ((tp - currentPrice) / (currentPrice - sl)).toFixed(2);
+
+        annotLayer.innerHTML = `
+          <div style="position:absolute;top:25%;left:20%;right:20%;border:1px dashed #089981;background:rgba(8,153,129,0.08);padding:6px;border-radius:4px;font-size:11px;color:#089981">
+            <strong>Target (TP): ${formatPrice(tp)}</strong> (+2.00%)
+          </div>
+          <div style="position:absolute;top:50%;left:20%;right:20%;border-top:2px solid var(--accent);font-size:11px;color:var(--accent);font-weight:700;padding-top:2px">
+            Entry: ${formatPrice(currentPrice)} • <strong>R:R Ratio: 1:${rr}</strong>
+          </div>
+          <div style="position:absolute;top:55%;left:20%;right:20%;border:1px dashed #f23645;background:rgba(242,54,69,0.08);padding:6px;border-radius:4px;font-size:11px;color:#f23645">
+            <strong>Stop Loss (SL): ${formatPrice(sl)}</strong> (-1.00%)
+          </div>
+        `;
+      } else {
+        annotLayer.innerHTML = "";
+      }
+    });
+  }
+
+  // Toast notifier helper
+  function showToast(msg) {
+    const toast = document.createElement("div");
+    toast.style.cssText = "position:fixed;bottom:70px;right:20px;z-index:99999;background:var(--surface);border:1px solid var(--accent);color:var(--ink-bright);padding:10px 16px;border-radius:6px;font-size:12px;font-weight:600;box-shadow:0 10px 25px rgba(0,0,0,0.5);animation:fadeIn 0.2s ease;";
+    toast.textContent = msg;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = "0";
+      toast.style.transition = "opacity 0.3s";
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
+  }
+
+  // Initialize paper portfolio & calendar on boot
+  loadPaperPortfolio();
+  updatePaperPortfolioUI();
+  updateCalendarAndRisk(userSelection?.symbol || "EURUSD");
+  calculateLots();
 })();
 
 // ── PWA Service Worker Registration ──────────────────────────────────────────

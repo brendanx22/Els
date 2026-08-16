@@ -351,11 +351,93 @@ function createApp(options = {}) {
           predictions: true,
           mtf: true,
           alerts: true,
+          screener: true,
+          calendar: true,
+          paperTrading: true,
           websocket: true
         }
       });
     } catch (error) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ── Multi-Pair Market Screener ──
+  const { MarketScreener } = require("../trading/screener");
+  const screener = new MarketScreener();
+  app.get("/api/screener", async (req, res) => {
+    try {
+      const tf = req.query.timeframe || "1h";
+      const results = await screener.scanMarkets(tf);
+      res.json({ markets: results, count: results.length, updatedAt: Date.now() });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Macro Economic Calendar ──
+  const { EconomicCalendar } = require("../trading/economicCalendar");
+  const calendar = new EconomicCalendar();
+  app.get("/api/calendar", (req, res) => {
+    try {
+      const symbol = req.query.symbol;
+      const events = calendar.getUpcomingEvents();
+      const risk = symbol ? calendar.checkEventRiskForSymbol(symbol) : { hasHighImpactRisk: false };
+      res.json({ events, risk, count: events.length, updatedAt: Date.now() });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Real-Time Webhook & Alert Dispatcher ──
+  const { AlertsEngine } = require("../trading/alertsEngine");
+  const alertsEngine = new AlertsEngine();
+  app.post("/api/alerts/test", async (req, res) => {
+    try {
+      const { type, webhookUrl, botToken, chatId, payload } = req.body;
+      const testData = payload || {
+        symbol: "BTCUSD",
+        timeframe: "1h",
+        direction: "BULLISH",
+        confluenceScore: 88,
+        price: "67,450.00",
+        entry: "67,200.00",
+        stopLoss: "66,500.00",
+        target1: "69,000.00",
+        text: "Bullish Order Block Mitigation + Confluence 88%"
+      };
+
+      let result;
+      if (type === "discord") {
+        result = await alertsEngine.sendDiscordWebhook(webhookUrl, testData);
+      } else if (type === "telegram") {
+        result = await alertsEngine.sendTelegramAlert(botToken, chatId, testData);
+      } else {
+        return res.status(400).json({ error: "Invalid alert type (expected 'discord' or 'telegram')" });
+      }
+
+      res.json({ success: true, result });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  // ── Position Size & Lot Calculator ──
+  const { PaperTradingEngine } = require("../trading/paperTrading");
+  const paperEngine = new PaperTradingEngine();
+  app.post("/api/paper-trading/calc", (req, res) => {
+    try {
+      const { balance, riskPercent, entry, stopLoss, assetType } = req.body;
+      const sizing = paperEngine.calculatePositionSize(
+        Number(balance || 100000),
+        Number(riskPercent || 1.0),
+        Number(entry),
+        Number(stopLoss),
+        assetType || "forex"
+      );
+      res.json(sizing);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
     }
   });
 
