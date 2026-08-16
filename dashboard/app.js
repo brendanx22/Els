@@ -392,9 +392,39 @@ function createApp(options = {}) {
   // ── Real-Time Webhook & Alert Dispatcher ──
   const { AlertsEngine } = require("../trading/alertsEngine");
   const alertsEngine = new AlertsEngine();
+
+  // In-memory alert subscription store for serverless environment
+  let serverTelegramConfig = {
+    botToken: process.env.TELEGRAM_BOT_TOKEN || "",
+    chatId: process.env.TELEGRAM_CHAT_ID || "",
+    discordWebhook: process.env.DISCORD_WEBHOOK_URL || "",
+    minConfluence: 75
+  };
+
+  app.post("/api/alerts/config", (req, res) => {
+    const { botToken, chatId, discordWebhook, minConfluence } = req.body;
+    if (botToken !== undefined) serverTelegramConfig.botToken = botToken;
+    if (chatId !== undefined) serverTelegramConfig.chatId = chatId;
+    if (discordWebhook !== undefined) serverTelegramConfig.discordWebhook = discordWebhook;
+    if (minConfluence !== undefined) serverTelegramConfig.minConfluence = Number(minConfluence);
+    res.json({ success: true, config: { minConfluence: serverTelegramConfig.minConfluence, configured: !!(serverTelegramConfig.botToken && serverTelegramConfig.chatId) } });
+  });
+
+  app.get("/api/alerts/config", (req, res) => {
+    res.json({
+      configured: !!(serverTelegramConfig.botToken && serverTelegramConfig.chatId),
+      hasDiscord: !!serverTelegramConfig.discordWebhook,
+      minConfluence: serverTelegramConfig.minConfluence
+    });
+  });
+
   app.post("/api/alerts/test", async (req, res) => {
     try {
       const { type, webhookUrl, botToken, chatId, payload } = req.body;
+      const targetToken = botToken || serverTelegramConfig.botToken;
+      const targetChatId = chatId || serverTelegramConfig.chatId;
+      const targetWebhook = webhookUrl || serverTelegramConfig.discordWebhook;
+
       const testData = payload || {
         symbol: "BTCUSD",
         timeframe: "1h",
@@ -409,9 +439,9 @@ function createApp(options = {}) {
 
       let result;
       if (type === "discord") {
-        result = await alertsEngine.sendDiscordWebhook(webhookUrl, testData);
+        result = await alertsEngine.sendDiscordWebhook(targetWebhook, testData);
       } else if (type === "telegram") {
-        result = await alertsEngine.sendTelegramAlert(botToken, chatId, testData);
+        result = await alertsEngine.sendTelegramAlert(targetToken, targetChatId, testData);
       } else {
         return res.status(400).json({ error: "Invalid alert type (expected 'discord' or 'telegram')" });
       }
@@ -419,6 +449,60 @@ function createApp(options = {}) {
       res.json({ success: true, result });
     } catch (err) {
       res.status(400).json({ error: err.message });
+    }
+  });
+
+  // ── Autonomous Telegram & Discord Scanner Cron ──
+  // Runs automatically via Vercel Cron every 10 minutes or external ping
+  app.all("/api/cron/scan", async (req, res) => {
+    try {
+      const token = req.query.botToken || serverTelegramConfig.botToken;
+      const chat = req.query.chatId || serverTelegramConfig.chatId;
+      const webhook = req.query.webhookUrl || serverTelegramConfig.discordWebhook;
+      const minConf = Number(req.query.minConfluence || serverTelegramConfig.minConfluence || 75);
+
+      if (!token && !webhook) {
+        return res.json({ status: "skipped", message: "No Telegram or Discord destination configured yet. Add in terminal More tab or set TELEGRAM_BOT_TOKEN env variable." });
+      }
+
+      // Scan all major markets
+      const markets = await screener.scanMarkets("1h");
+      const highQualitySetups = markets.filter(m => m.confluenceScore >= minConf);
+      const sentAlerts = [];
+
+      for (const setup of highQualitySetups) {
+        const alertPayload = {
+          symbol: setup.symbol,
+          timeframe: "1h",
+          direction: setup.bias,
+          confluenceScore: setup.confluenceScore,
+          price: setup.price,
+          detail: `SMC Status: ${setup.smcStatus} | 24h Change: ${setup.changePercent}% | RSI: ${setup.rsi}`
+        };
+
+        if (token && chat) {
+          try {
+            await alertsEngine.sendTelegramAlert(token, chat, alertPayload);
+            sentAlerts.push({ symbol: setup.symbol, destination: "Telegram" });
+          } catch (_) {}
+        }
+        if (webhook) {
+          try {
+            await alertsEngine.sendDiscordWebhook(webhook, alertPayload);
+            sentAlerts.push({ symbol: setup.symbol, destination: "Discord" });
+          } catch (_) {}
+        }
+      }
+
+      res.json({
+        status: "complete",
+        scanned: markets.length,
+        triggeredSetups: highQualitySetups.length,
+        dispatched: sentAlerts,
+        timestamp: new Date().toISOString()
+      });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
   });
 

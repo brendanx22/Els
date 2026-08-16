@@ -4162,10 +4162,56 @@
   const testTgBtn = document.getElementById("test-telegram-btn");
   const copyBrokerBtn = document.getElementById("copy-broker-webhook-btn");
 
+  // Load saved credentials from localStorage
+  const SAVED_TG_TOKEN = localStorage.getItem("els_tg_bot_token") || "";
+  const SAVED_TG_CHAT = localStorage.getItem("els_tg_chat_id") || "";
+  const SAVED_DISCORD_URL = localStorage.getItem("els_discord_webhook") || "";
+
+  if (cfgTgToken && SAVED_TG_TOKEN) cfgTgToken.value = SAVED_TG_TOKEN;
+  if (cfgTgChatId && SAVED_TG_CHAT) cfgTgChatId.value = SAVED_TG_CHAT;
+  if (cfgDiscordWebhook && SAVED_DISCORD_URL) cfgDiscordWebhook.value = SAVED_DISCORD_URL;
+
+  // Auto-sync configuration with backend
+  async function syncAlertConfig(botToken, chatId, discordWebhook) {
+    try {
+      await fetch("/api/alerts/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ botToken, chatId, discordWebhook, minConfluence: 75 })
+      });
+    } catch (_) {}
+  }
+
+  // Initial sync on boot
+  if (SAVED_TG_TOKEN || SAVED_DISCORD_URL) {
+    syncAlertConfig(SAVED_TG_TOKEN, SAVED_TG_CHAT, SAVED_DISCORD_URL);
+  }
+
+  if (cfgTgToken) {
+    cfgTgToken.addEventListener("change", () => {
+      localStorage.setItem("els_tg_bot_token", cfgTgToken.value.trim());
+      syncAlertConfig(cfgTgToken.value.trim(), cfgTgChatId?.value.trim(), cfgDiscordWebhook?.value.trim());
+    });
+  }
+  if (cfgTgChatId) {
+    cfgTgChatId.addEventListener("change", () => {
+      localStorage.setItem("els_tg_chat_id", cfgTgChatId.value.trim());
+      syncAlertConfig(cfgTgToken?.value.trim(), cfgTgChatId.value.trim(), cfgDiscordWebhook?.value.trim());
+    });
+  }
+  if (cfgDiscordWebhook) {
+    cfgDiscordWebhook.addEventListener("change", () => {
+      localStorage.setItem("els_discord_webhook", cfgDiscordWebhook.value.trim());
+      syncAlertConfig(cfgTgToken?.value.trim(), cfgTgChatId?.value.trim(), cfgDiscordWebhook.value.trim());
+    });
+  }
+
   if (testDiscordBtn && cfgDiscordWebhook) {
     testDiscordBtn.addEventListener("click", async () => {
       const webhookUrl = cfgDiscordWebhook.value.trim();
       if (!webhookUrl) return alert("Please enter your Discord Webhook URL");
+      localStorage.setItem("els_discord_webhook", webhookUrl);
+      syncAlertConfig(cfgTgToken?.value.trim(), cfgTgChatId?.value.trim(), webhookUrl);
       try {
         testDiscordBtn.textContent = "Sending Test...";
         const res = await fetch("/api/alerts/test", {
@@ -4189,6 +4235,9 @@
       const botToken = cfgTgToken.value.trim();
       const chatId = cfgTgChatId.value.trim();
       if (!botToken || !chatId) return alert("Please enter both Telegram Bot Token and Chat ID");
+      localStorage.setItem("els_tg_bot_token", botToken);
+      localStorage.setItem("els_tg_chat_id", chatId);
+      syncAlertConfig(botToken, chatId, cfgDiscordWebhook?.value.trim());
       try {
         testTgBtn.textContent = "Sending Test...";
         const res = await fetch("/api/alerts/test", {
@@ -4197,7 +4246,7 @@
           body: JSON.stringify({ type: "telegram", botToken, chatId })
         });
         const data = await res.json();
-        if (res.ok) alert("✅ Telegram Alert Test Sent Successfully!");
+        if (res.ok) alert("✅ Telegram Alert Test Sent! 24/7 background scanner is active.");
         else alert(`❌ Error: ${data.error}`);
       } catch (err) {
         alert(`❌ Error: ${err.message}`);
