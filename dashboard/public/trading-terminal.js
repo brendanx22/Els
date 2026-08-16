@@ -405,13 +405,7 @@
 
   // ── Advanced Patterns Controller ──
   function updatePatternDisplay(patternData) {
-    if (!patternList) return;
-    
-    patternList.innerHTML = "";
-    if (!patternData) {
-      patternList.innerHTML = "<p class='thesis-copy' style='margin:0'>No patterns detected.</p>";
-      return;
-    }
+    if (!patternData) return;
     
     // Aggregate all patterns with proper normalization
     const chartPatterns = (patternData.chart || []).map(p => ({
@@ -476,57 +470,66 @@
       ...recentCandles
     ];
 
-    if (allPatterns.length === 0) {
-      patternList.innerHTML = "<p class='thesis-copy' style='margin:0'>No patterns detected.</p>";
-    } else {
-      allPatterns.slice(0, 10).forEach(pat => {
-        const item = document.createElement("div");
-        item.className = "pattern-item";
-        
-        let sigClass = "neutral";
-        let sigText = "NEUTRAL";
-        const rawSig = String(pat.signal || "").toLowerCase();
-        if (rawSig.includes("bull")) {
-          sigClass = "bullish";
-          sigText = "BULLISH";
-        } else if (rawSig.includes("bear")) {
-          sigClass = "bearish";
-          sigText = "BEARISH";
-        } else if (rawSig.includes("weak")) {
-          sigClass = "weak";
-          sigText = "WEAK";
-        } else if (rawSig) {
-          sigText = rawSig.toUpperCase().slice(0, 8);
-        }
+    const patternContainers = [
+      document.getElementById("pattern-list"),
+      document.getElementById("strategy-pattern-list")
+    ].filter(Boolean);
 
-        item.innerHTML = `
-          <div style="display: flex; flex-direction: column; gap: 2px;">
-            <span class="pattern-name">${escapeHtml(pat.name)}</span>
-            ${pat.detail ? `<span style="font-size: 10px; color: var(--ink-dim);">${escapeHtml(pat.detail)}</span>` : ''}
-          </div>
-          <span class="pattern-signal ${sigClass}">${sigText}</span>
-        `;
-        patternList.appendChild(item);
-      });
-    }
+    patternContainers.forEach(container => {
+      container.innerHTML = "";
+      if (allPatterns.length === 0) {
+        container.innerHTML = "<p class='thesis-copy' style='margin:0'>No patterns detected.</p>";
+      } else {
+        allPatterns.slice(0, 10).forEach(pat => {
+          const item = document.createElement("div");
+          item.className = "pattern-item";
+          
+          let sigClass = "neutral";
+          let sigText = "NEUTRAL";
+          const rawSig = String(pat.signal || "").toLowerCase();
+          if (rawSig.includes("bull")) {
+            sigClass = "bullish";
+            sigText = "BULLISH";
+          } else if (rawSig.includes("bear")) {
+            sigClass = "bearish";
+            sigText = "BEARISH";
+          } else if (rawSig.includes("weak")) {
+            sigClass = "weak";
+            sigText = "WEAK";
+          } else if (rawSig) {
+            sigText = rawSig.toUpperCase().slice(0, 8);
+          }
 
-    // Update counter badges
-    if (patternCandlestickValue) {
-      const candleCount = (patternData.candlestick || []).length;
-      patternCandlestickValue.textContent = candleCount > 0 ? `${candleCount} found` : "0";
-    }
-    if (patternChartValue) {
-      const chartCount = (patternData.chart || []).length;
-      patternChartValue.textContent = chartCount > 0 ? `${chartCount} found` : "0";
-    }
-    if (patternHarmonicValue) {
-      const harmonicCount = (patternData.harmonic || []).length;
-      patternHarmonicValue.textContent = harmonicCount > 0 ? `${harmonicCount} found` : "0";
-    }
-    if (patternSmcValue) {
-      const smcCount = (patternData.smartMoney || []).length;
-      patternSmcValue.textContent = smcCount > 0 ? `${smcCount} found` : "0";
-    }
+          item.innerHTML = `
+            <div style="display: flex; flex-direction: column; gap: 2px;">
+              <span class="pattern-name">${escapeHtml(pat.name)}</span>
+              ${pat.detail ? `<span style="font-size: 10px; color: var(--ink-dim);">${escapeHtml(pat.detail)}</span>` : ''}
+            </div>
+            <span class="pattern-signal ${sigClass}">${sigText}</span>
+          `;
+          container.appendChild(item);
+        });
+      }
+    });
+
+    // Update counter badges everywhere
+    const candleCount = (patternData.candlestick || []).length;
+    const chartCount = (patternData.chart || []).length;
+    const harmonicCount = (patternData.harmonic || []).length;
+    const smcCount = (patternData.smartMoney || []).length;
+
+    document.querySelectorAll("#pattern-candlestick-value, .pattern-candlestick-value").forEach(el => {
+      el.textContent = candleCount > 0 ? `${candleCount} found` : "0";
+    });
+    document.querySelectorAll("#pattern-chart-value, .pattern-chart-value").forEach(el => {
+      el.textContent = chartCount > 0 ? `${chartCount} found` : "0";
+    });
+    document.querySelectorAll("#pattern-harmonic-value, .pattern-harmonic-value").forEach(el => {
+      el.textContent = harmonicCount > 0 ? `${harmonicCount} found` : "0";
+    });
+    document.querySelectorAll("#pattern-smc-value, .pattern-smc-value").forEach(el => {
+      el.textContent = smcCount > 0 ? `${smcCount} found` : "0";
+    });
 
     if (featurePatterns) featurePatterns.classList.add("active");
   }
@@ -535,11 +538,12 @@
   function updateEnhancedDashboard(payload) {
     if (!payload) return;
     
-    const analysis = payload.analysis || {};
+    const analysis = payload.analysis || payload;
+    const patterns = analysis.advancedPatterns || payload.advancedPatterns || payload.analysis?.patterns;
     
     // Update patterns
-    if (analysis.advancedPatterns) {
-      updatePatternDisplay(analysis.advancedPatterns);
+    if (patterns) {
+      updatePatternDisplay(patterns);
     }
     
     // Update predictive analytics
@@ -3632,22 +3636,46 @@
       }
     })();
 
-    // Auto-refresh: re-fetch live data for the current symbol every 30s (silent, no full screen blur)
+    // Auto-refresh: high-frequency 4s real-time live data polling
+    let liveUpdatesCount = 0;
+    let isPolling = false;
+
     window.setInterval(async () => {
+      if (isPolling) return;
       const sel = userSelection;
-      if (!sel) return;
+      if (!sel || !sel.symbol) return;
+      const t0 = performance.now();
       try {
+        isPolling = true;
         const res = await fetch(`/api/market?symbol=${encodeURIComponent(sel.symbol)}&timeframe=${encodeURIComponent(sel.timeframe)}`);
         if (!res.ok) return;
         const data = await res.json();
+        const latencyMs = Math.round(performance.now() - t0);
+        liveUpdatesCount++;
+
+        // Update WebSocket / live status panel
+        const wsStatusEl = document.getElementById("ws-status-value");
+        const wsLatencyEl = document.getElementById("ws-latency-value");
+        const wsUpdatesEl = document.getElementById("ws-updates-value");
+        if (wsStatusEl) {
+          wsStatusEl.textContent = "Real-Time Active";
+          wsStatusEl.className = "color-green";
+        }
+        if (wsLatencyEl) wsLatencyEl.textContent = `${latencyMs}ms`;
+        if (wsUpdatesEl) wsUpdatesEl.textContent = String(liveUpdatesCount);
+
         if (renderedSnapshot) {
           renderedSnapshot.latest = data;
           renderedSnapshot.selection = sel;
           lastRenderKey = "";
           renderMarket(renderedSnapshot);
         }
-      } catch (_) { /* silent retry next interval */ }
-    }, 30000);
+      } catch (_) {
+        /* silent retry next interval */
+      } finally {
+        isPolling = false;
+      }
+    }, 4000);
   }
 })();
 

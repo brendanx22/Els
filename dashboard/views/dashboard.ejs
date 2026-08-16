@@ -168,6 +168,7 @@
           <!-- Tab bar -->
           <nav class="sidebar-tabs" role="tablist">
             <button class="sidebar-tab active" data-tab="strategy" role="tab">Strategy</button>
+            <button class="sidebar-tab" data-tab="patterns" role="tab">Patterns</button>
             <button class="sidebar-tab" data-tab="signals" role="tab">Signals</button>
             <button class="sidebar-tab" data-tab="news" role="tab">News</button>
             <button class="sidebar-tab" data-tab="more" role="tab">More</button>
@@ -211,6 +212,13 @@
               </div>
 
               <div class="sidebar-panel">
+                <div class="panel-label">Key Formations</div>
+                <div class="pattern-list" id="strategy-pattern-list">
+                  <p class="thesis-copy" style="margin:0">Scanning market patterns...</p>
+                </div>
+              </div>
+
+              <div class="sidebar-panel">
                 <div class="panel-label">Scorecard</div>
                 <div class="data-grid signal-grid">
                   <div class="data-cell signal-cell"><span>Trend</span><strong id="trend-score-value">--</strong></div>
@@ -234,6 +242,22 @@
               </div>
 
             </div><!-- /pane-strategy -->
+
+            <!-- ── PATTERNS ── -->
+            <div class="tab-pane" id="pane-patterns">
+              <div class="sidebar-panel">
+                <div class="panel-label">Advanced Pattern Recognition</div>
+                <div class="data-grid signal-grid">
+                  <div class="data-cell signal-cell"><span>Candlestick</span><strong id="pattern-candlestick-value" class="pattern-candlestick-value">0</strong></div>
+                  <div class="data-cell signal-cell"><span>Chart</span><strong id="pattern-chart-value" class="pattern-chart-value">0</strong></div>
+                  <div class="data-cell signal-cell"><span>Harmonic</span><strong id="pattern-harmonic-value" class="pattern-harmonic-value">0</strong></div>
+                  <div class="data-cell signal-cell"><span>SMC</span><strong id="pattern-smc-value" class="pattern-smc-value">0</strong></div>
+                </div>
+                <div class="pattern-list" id="pattern-list">
+                  <p class="thesis-copy" style="margin:0">Scanning market patterns...</p>
+                </div>
+              </div>
+            </div><!-- /pane-patterns -->
 
             <!-- ── SIGNALS ── -->
             <div class="tab-pane" id="pane-signals">
