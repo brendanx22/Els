@@ -3896,7 +3896,7 @@
       "price": 4437.3,
       "shortName": "Gold Dec 26"
     },
-    "updatedAt": 1786912323186,
+    "updatedAt": 1786912401059,
     "timeframe": {
       "key": "1h",
       "label": "1 Hour"
@@ -9200,7 +9200,7 @@
         ],
         "marketState": "unknown",
         "nextActions": [
-          "wait for market data"
+          "gather more market data"
         ],
         "oneLineCall": "Avoid trading due to lack of data",
         "provider": "groq",
@@ -9214,7 +9214,7 @@
           "confidence_label": "low",
           "should_trade": false,
           "one_line_call": "Avoid trading due to lack of data",
-          "thesis": "No market data or news provided to analyze",
+          "thesis": "Insufficient market data to form a trading thesis",
           "entry_plan": {
             "status": "avoid"
           },
@@ -9224,14 +9224,14 @@
           ],
           "invalidations": [],
           "next_actions": [
-            "wait for market data"
+            "gather more market data"
           ]
         },
         "riskFlags": [
           "insufficient data"
         ],
         "shouldTrade": false,
-        "thesis": "No market data or news provided to analyze",
+        "thesis": "Insufficient market data to form a trading thesis",
         "model": "llama-3.3-70b-versatile"
       },
       "news": {
@@ -9479,7 +9479,7 @@
           }
         ],
         "summary": "Predominantly bullish sentiment (58% positive coverage) from 6 sources. Moderate market influence from recent news.",
-        "lastUpdated": "2026-08-16T20:32:08.213Z"
+        "lastUpdated": "2026-08-16T20:33:26.324Z"
       },
       "movements": {
         "symbol": "XAUUSD",
@@ -12962,7 +12962,7 @@
             },
             "structure": "trending",
             "momentum": 1,
-            "timestamp": "2026-08-16T20:32:09.011Z"
+            "timestamp": "2026-08-16T20:33:27.065Z"
           },
           "30m": {
             "symbol": "XAUUSD",
@@ -12988,7 +12988,7 @@
             },
             "structure": "trending",
             "momentum": 1,
-            "timestamp": "2026-08-16T20:32:09.223Z"
+            "timestamp": "2026-08-16T20:33:27.274Z"
           },
           "1h": {
             "symbol": "XAUUSD",
@@ -13014,7 +13014,7 @@
             },
             "structure": "trending",
             "momentum": 1,
-            "timestamp": "2026-08-16T20:32:09.504Z"
+            "timestamp": "2026-08-16T20:33:27.538Z"
           },
           "2h": {
             "symbol": "XAUUSD",
@@ -13040,7 +13040,7 @@
             },
             "structure": "trending",
             "momentum": -1,
-            "timestamp": "2026-08-16T20:32:09.719Z"
+            "timestamp": "2026-08-16T20:33:27.756Z"
           },
           "4h": {
             "symbol": "XAUUSD",
@@ -13066,7 +13066,7 @@
             },
             "structure": "trending",
             "momentum": 1,
-            "timestamp": "2026-08-16T20:32:10.144Z"
+            "timestamp": "2026-08-16T20:33:28.230Z"
           }
         },
         "confluence": {
@@ -13303,7 +13303,7 @@
               },
               "structure": "trending",
               "momentum": -1,
-              "timestamp": "2026-08-16T20:32:09.719Z"
+              "timestamp": "2026-08-16T20:33:27.756Z"
             },
             {
               "timeframe": "4h",
@@ -13329,7 +13329,7 @@
               },
               "structure": "trending",
               "momentum": 1,
-              "timestamp": "2026-08-16T20:32:10.144Z"
+              "timestamp": "2026-08-16T20:33:28.230Z"
             }
           ],
           "current": {
@@ -13356,7 +13356,7 @@
             },
             "structure": "trending",
             "momentum": 1,
-            "timestamp": "2026-08-16T20:32:09.504Z"
+            "timestamp": "2026-08-16T20:33:27.538Z"
           },
           "lower": [
             {
@@ -13383,7 +13383,7 @@
               },
               "structure": "trending",
               "momentum": 1,
-              "timestamp": "2026-08-16T20:32:09.011Z"
+              "timestamp": "2026-08-16T20:33:27.065Z"
             },
             {
               "timeframe": "30m",
@@ -13409,7 +13409,7 @@
               },
               "structure": "trending",
               "momentum": 1,
-              "timestamp": "2026-08-16T20:32:09.223Z"
+              "timestamp": "2026-08-16T20:33:27.274Z"
             }
           ],
           "higherBias": "neutral",
@@ -13430,7 +13430,7 @@
             "Higher timeframe disagreement - trade with caution"
           ]
         },
-        "timestamp": "2026-08-16T20:32:10.144Z"
+        "timestamp": "2026-08-16T20:33:28.230Z"
       }
     },
     "news": {
@@ -13678,7 +13678,7 @@
         }
       ],
       "summary": "Predominantly bullish sentiment (58% positive coverage) from 6 sources. Moderate market influence from recent news.",
-      "lastUpdated": "2026-08-16T20:32:08.213Z"
+      "lastUpdated": "2026-08-16T20:33:26.324Z"
     },
     "movements": {
       "symbol": "XAUUSD",
@@ -17161,7 +17161,7 @@
           },
           "structure": "trending",
           "momentum": 1,
-          "timestamp": "2026-08-16T20:32:09.011Z"
+          "timestamp": "2026-08-16T20:33:27.065Z"
         },
         "30m": {
           "symbol": "XAUUSD",
@@ -17187,7 +17187,7 @@
           },
           "structure": "trending",
           "momentum": 1,
-          "timestamp": "2026-08-16T20:32:09.223Z"
+          "timestamp": "2026-08-16T20:33:27.274Z"
         },
         "1h": {
           "symbol": "XAUUSD",
@@ -17213,7 +17213,7 @@
           },
           "structure": "trending",
           "momentum": 1,
-          "timestamp": "2026-08-16T20:32:09.504Z"
+          "timestamp": "2026-08-16T20:33:27.538Z"
         },
         "2h": {
           "symbol": "XAUUSD",
@@ -17239,7 +17239,7 @@
           },
           "structure": "trending",
           "momentum": -1,
-          "timestamp": "2026-08-16T20:32:09.719Z"
+          "timestamp": "2026-08-16T20:33:27.756Z"
         },
         "4h": {
           "symbol": "XAUUSD",
@@ -17265,7 +17265,7 @@
           },
           "structure": "trending",
           "momentum": 1,
-          "timestamp": "2026-08-16T20:32:10.144Z"
+          "timestamp": "2026-08-16T20:33:28.230Z"
         }
       },
       "confluence": {
@@ -17502,7 +17502,7 @@
             },
             "structure": "trending",
             "momentum": -1,
-            "timestamp": "2026-08-16T20:32:09.719Z"
+            "timestamp": "2026-08-16T20:33:27.756Z"
           },
           {
             "timeframe": "4h",
@@ -17528,7 +17528,7 @@
             },
             "structure": "trending",
             "momentum": 1,
-            "timestamp": "2026-08-16T20:32:10.144Z"
+            "timestamp": "2026-08-16T20:33:28.230Z"
           }
         ],
         "current": {
@@ -17555,7 +17555,7 @@
           },
           "structure": "trending",
           "momentum": 1,
-          "timestamp": "2026-08-16T20:32:09.504Z"
+          "timestamp": "2026-08-16T20:33:27.538Z"
         },
         "lower": [
           {
@@ -17582,7 +17582,7 @@
             },
             "structure": "trending",
             "momentum": 1,
-            "timestamp": "2026-08-16T20:32:09.011Z"
+            "timestamp": "2026-08-16T20:33:27.065Z"
           },
           {
             "timeframe": "30m",
@@ -17608,7 +17608,7 @@
             },
             "structure": "trending",
             "momentum": 1,
-            "timestamp": "2026-08-16T20:32:09.223Z"
+            "timestamp": "2026-08-16T20:33:27.274Z"
           }
         ],
         "higherBias": "neutral",
@@ -17629,7 +17629,7 @@
           "Higher timeframe disagreement - trade with caution"
         ]
       },
-      "timestamp": "2026-08-16T20:32:10.144Z"
+      "timestamp": "2026-08-16T20:33:28.230Z"
     }
   },
   "commandHistory": [
@@ -17717,22 +17717,22 @@
     "detail": "Watching XAUUSD on 1 Hour.",
     "label": "Live",
     "mode": "live",
-    "updatedAt": 1786912330144
+    "updatedAt": 1786912408230
   },
-  "version": 114410,
+  "version": 114413,
   "watch": {
     "active": true,
     "ownerId": "session-21692-1786908055216-qjrdks",
     "ownerSource": "terminal",
-    "nextRefreshAt": 1786912390160,
-    "nextQuoteAt": 1786912348485,
+    "nextRefreshAt": 1786912468248,
+    "nextQuoteAt": 1786912457468,
     "quoteMs": 100,
     "refreshMs": 60000,
     "symbol": "XAUUSD",
     "timeframe": "1h",
     "aiInFlight": false,
     "aiMs": 300000,
-    "lastAiAt": 1786912330144,
-    "nextAiAt": 1786912630144
+    "lastAiAt": 1786912408230,
+    "nextAiAt": 1786912708230
   }
 }
