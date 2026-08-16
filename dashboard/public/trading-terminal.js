@@ -686,6 +686,26 @@
   let lastRenderKey = "";
   let lastStreamEventAt = 0;
 
+  // ── Client-side selection persistence (survives SSE/serverless resets) ──
+  const LS_KEY = "els_user_selection";
+  let userSelection = null; // { symbol, timeframe } — set by user action
+
+  function saveUserSelection(symbol, timeframe) {
+    userSelection = { symbol, timeframe };
+    try { localStorage.setItem(LS_KEY, JSON.stringify(userSelection)); } catch (_) {}
+  }
+
+  function loadUserSelection() {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (raw) userSelection = JSON.parse(raw);
+    } catch (_) {}
+    return userSelection;
+  }
+
+  // Load saved selection immediately
+  loadUserSelection();
+
   function sanitizeRiskFlags(items) {
     const blockedPrefixes = [
       "Gemini analysis failed:",
@@ -3074,6 +3094,27 @@
 
   function handleSnapshot(payload) {
     if (!payload) return;
+
+    // If the user has actively chosen a symbol/timeframe, don't let the
+    // server's stale default state (EURUSD/1h on Vercel) overwrite it.
+    if (userSelection) {
+      const serverSymbol = payload.selection?.symbol;
+      const serverTf = payload.selection?.timeframe;
+      const isDifferent =
+        serverSymbol !== userSelection.symbol ||
+        serverTf !== userSelection.timeframe;
+
+      if (isDifferent) {
+        // Merge: keep user's selection but absorb server metadata (status, watch timing, etc.)
+        payload = {
+          ...payload,
+          selection: userSelection,
+          // Preserve existing rendered market data — don't wipe it
+          latest: renderedSnapshot?.latest ?? payload.latest,
+        };
+      }
+    }
+
     renderedSnapshot = payload;
     const nextRenderKey = buildRenderKey(payload);
     if (nextRenderKey === lastRenderKey) {
@@ -3194,8 +3235,12 @@
         if (statusDetail) statusDetail.textContent = `Viewing ${marketData.displaySymbol || symbol}`;
       }
       
+      const resolvedSymbol = marketData.providerSymbol || symbol;
+      // Persist so SSE stream doesn't reset us back to server default
+      saveUserSelection(resolvedSymbol, currentTf);
+      lastRenderKey = ""; // force a full re-render
       if (renderedSnapshot) {
-        renderedSnapshot.selection = { symbol: marketData.providerSymbol || symbol, timeframe: currentTf };
+        renderedSnapshot.selection = { symbol: resolvedSymbol, timeframe: currentTf };
         renderedSnapshot.latest = marketData;
         renderMarket(renderedSnapshot);
       }
@@ -3245,6 +3290,9 @@
             if (statusDetail) statusDetail.textContent = `${marketData.displaySymbol} (${tf})`;
           }
 
+          // Persist timeframe choice so SSE stream doesn't revert it
+          saveUserSelection(currentSymbol, tf);
+          lastRenderKey = ""; // force a full re-render
           if (renderedSnapshot) {
             renderedSnapshot.selection = { symbol: currentSymbol, timeframe: tf };
             renderedSnapshot.latest = marketData;
