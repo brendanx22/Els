@@ -3250,6 +3250,11 @@
     
     // Draw sentiment timeline with live news timeline
     drawSentimentTimeline(news?.sentimentTimeline || payload.analysis?.news?.sentimentTimeline);
+
+    // Keep Risk-Reward tool persistent and updated
+    if (typeof renderRrTool === "function" && isRrToolActive) {
+      renderRrTool();
+    }
   }
 
   function handleSnapshot(payload) {
@@ -4288,35 +4293,81 @@
 
   // ── 6. Long / Short Risk-Reward Tool Toggle on Chart Stage ──
   const rrToolBtn = document.getElementById("rr-tool-btn");
+  const rrToolLayer = document.getElementById("rr-tool-layer");
   let isRrToolActive = false;
+  let rrSide = "LONG";
+
+  function renderRrTool() {
+    if (!rrToolLayer) return;
+    if (!isRrToolActive) {
+      rrToolLayer.hidden = true;
+      rrToolLayer.innerHTML = "";
+      return;
+    }
+
+    rrToolLayer.hidden = false;
+    const currentPrice = renderedSnapshot?.latest?.snapshot?.price || 100;
+    const setups = renderedSnapshot?.latest?.analysis?.setups || [];
+    const activeSetup = setups[0];
+
+    let entry = currentPrice;
+    let sl = currentPrice * 0.99;
+    let tp = currentPrice * 1.02;
+
+    if (activeSetup && activeSetup.entry && activeSetup.stopLoss) {
+      entry = Number(activeSetup.entry);
+      sl = Number(activeSetup.stopLoss);
+      tp = Number(activeSetup.target1 || activeSetup.target || (entry * 1.02));
+      rrSide = (activeSetup.direction || "").toLowerCase().includes("bear") ? "SHORT" : "LONG";
+    } else if (rrSide === "SHORT") {
+      sl = currentPrice * 1.01;
+      tp = currentPrice * 0.98;
+    }
+
+    const profitDistance = Math.abs(tp - entry);
+    const riskDistance = Math.abs(entry - sl) || 0.0001;
+    const rrRatio = (profitDistance / riskDistance).toFixed(2);
+    const tpPct = ((profitDistance / entry) * 100).toFixed(2);
+    const slPct = ((riskDistance / entry) * 100).toFixed(2);
+
+    rrToolLayer.innerHTML = `
+      <div class="rr-tool-box">
+        <div class="rr-target-zone">
+          <span class="rr-badge target">Target (TP): ${formatPrice(tp)}</span>
+          <span class="rr-ratio-pill">+${tpPct}%</span>
+        </div>
+        <div class="rr-entry-line">
+          <span class="rr-badge entry">Entry (${rrSide}): ${formatPrice(entry)}</span>
+          <span class="rr-ratio-pill" style="border-color:var(--accent);color:var(--accent)">1 : ${rrRatio} R:R</span>
+        </div>
+        <div class="rr-stop-zone">
+          <span class="rr-badge stop">Stop Loss (SL): ${formatPrice(sl)}</span>
+          <span class="rr-ratio-pill" style="color:#ef5350">-${slPct}%</span>
+        </div>
+      </div>
+      <div class="rr-tool-actions">
+        <button class="rr-side-toggle ${rrSide === 'LONG' ? 'active' : ''}" id="rr-toggle-long">LONG</button>
+        <button class="rr-side-toggle ${rrSide === 'SHORT' ? 'active' : ''}" id="rr-toggle-short">SHORT</button>
+      </div>
+    `;
+
+    document.getElementById("rr-toggle-long")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      rrSide = "LONG";
+      renderRrTool();
+    });
+    document.getElementById("rr-toggle-short")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      rrSide = "SHORT";
+      renderRrTool();
+    });
+  }
 
   if (rrToolBtn) {
     rrToolBtn.addEventListener("click", () => {
       isRrToolActive = !isRrToolActive;
       rrToolBtn.classList.toggle("active", isRrToolActive);
-      const annotLayer = document.getElementById("chart-annotation-layer");
-      if (!annotLayer) return;
-
-      if (isRrToolActive) {
-        const currentPrice = renderedSnapshot?.latest?.snapshot?.price || 100;
-        const tp = currentPrice * 1.02;
-        const sl = currentPrice * 0.99;
-        const rr = ((tp - currentPrice) / (currentPrice - sl)).toFixed(2);
-
-        annotLayer.innerHTML = `
-          <div style="position:absolute;top:25%;left:20%;right:20%;border:1px dashed #089981;background:rgba(8,153,129,0.08);padding:6px;border-radius:4px;font-size:11px;color:#089981">
-            <strong>Target (TP): ${formatPrice(tp)}</strong> (+2.00%)
-          </div>
-          <div style="position:absolute;top:50%;left:20%;right:20%;border-top:2px solid var(--accent);font-size:11px;color:var(--accent);font-weight:700;padding-top:2px">
-            Entry: ${formatPrice(currentPrice)} • <strong>R:R Ratio: 1:${rr}</strong>
-          </div>
-          <div style="position:absolute;top:55%;left:20%;right:20%;border:1px dashed #f23645;background:rgba(242,54,69,0.08);padding:6px;border-radius:4px;font-size:11px;color:#f23645">
-            <strong>Stop Loss (SL): ${formatPrice(sl)}</strong> (-1.00%)
-          </div>
-        `;
-      } else {
-        annotLayer.innerHTML = "";
-      }
+      renderRrTool();
     });
   }
 
