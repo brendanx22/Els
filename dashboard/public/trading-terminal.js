@@ -3225,7 +3225,6 @@
   const processOverlay = document.getElementById("process-loading-overlay");
   const processText = document.getElementById("process-loading-text");
   const processSub = document.getElementById("process-loading-sub");
-  const snapshotArea = document.getElementById("snapshot-area");
   let loadingTimeout = null;
 
   function showLoadingState(title, subtitle) {
