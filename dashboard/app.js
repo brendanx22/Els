@@ -462,7 +462,7 @@ function createApp(options = {}) {
       const token = req.query.botToken || serverTelegramConfig.botToken || process.env.TELEGRAM_BOT_TOKEN;
       const chat = req.query.chatId || serverTelegramConfig.chatId || process.env.TELEGRAM_CHAT_ID;
       const webhook = req.query.webhookUrl || serverTelegramConfig.discordWebhook || process.env.DISCORD_WEBHOOK_URL;
-      const minConf = Number(req.query.minConfluence || serverTelegramConfig.minConfluence || 60);
+      const minConf = Number(req.query.minConfluence || serverTelegramConfig.minConfluence || 55);
 
       if (!token && !webhook) {
         return res.json({
