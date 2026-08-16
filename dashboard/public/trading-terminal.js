@@ -3095,31 +3095,42 @@
   function handleSnapshot(payload) {
     if (!payload) return;
 
-    // If the user has actively chosen a symbol/timeframe, don't let the
-    // server's stale default state (EURUSD/1h on Vercel) overwrite it.
-    if (userSelection) {
-      const serverSymbol = payload.selection?.symbol;
-      const serverTf = payload.selection?.timeframe;
-      const isDifferent =
-        serverSymbol !== userSelection.symbol ||
-        serverTf !== userSelection.timeframe;
+    // ── USER HAS EXPLICITLY CHOSEN A SYMBOL ───────────────────────────────────
+    // On Vercel, serverless functions are stateless — every SSE/poll response
+    // comes back with the server's default state (EURUSD/1h, possibly null data).
+    // Once the user has loaded their own symbol/timeframe, we NEVER let the
+    // server overwrite what's on screen. We only silently absorb timing & status.
+    if (userSelection && renderedSnapshot?.latest) {
+      // Just update the lightweight timing labels — no re-render
+      if (nextRefresh) nextRefresh.textContent = formatTimingSummary(payload.watch);
+      if (updatedStat) updatedStat.textContent = formatUpdatedStat(renderedSnapshot.latest?.updatedAt);
 
-      if (isDifferent) {
-        // Merge: keep user's selection but absorb server metadata (status, watch timing, etc.)
-        payload = {
-          ...payload,
-          selection: userSelection,
-          // Preserve existing rendered market data — don't wipe it
-          latest: renderedSnapshot?.latest ?? payload.latest,
-        };
+      // Update the status badge if the engine reports something meaningful
+      if (payload.status?.label && statusCard) {
+        const serverLabel = payload.status.label;
+        // Don't overwrite an "Active" user state with a server "Idle"
+        if (statusCard.dataset.tone !== "active") {
+          if (statusLabel) statusLabel.textContent = serverLabel;
+          if (statusDetail) statusDetail.textContent = payload.status.detail || "";
+        }
       }
+
+      // Keep renderedSnapshot metadata in sync (watch timings, version, etc.)
+      // but preserve selection + latest so nothing on screen changes
+      renderedSnapshot = {
+        ...payload,
+        selection: userSelection,
+        latest: renderedSnapshot.latest,
+      };
+      return;
     }
 
+    // ── FIRST LOAD (no user selection yet) — render normally ─────────────────
     renderedSnapshot = payload;
     const nextRenderKey = buildRenderKey(payload);
     if (nextRenderKey === lastRenderKey) {
-      nextRefresh.textContent = formatTimingSummary(payload.watch);
-      updatedStat.textContent = formatUpdatedStat(payload.latest?.updatedAt);
+      if (nextRefresh) nextRefresh.textContent = formatTimingSummary(payload.watch);
+      if (updatedStat) updatedStat.textContent = formatUpdatedStat(payload.latest?.updatedAt);
       return;
     }
     lastRenderKey = nextRenderKey;

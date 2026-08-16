@@ -1,6 +1,5 @@
-const CACHE = "els-v1";
+const CACHE = "els-v2";
 const SHELL = [
-  "/",
   "/trading-terminal.css",
   "/trading-terminal.js",
   "/els-logo.jpg",
