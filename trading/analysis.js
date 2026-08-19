@@ -761,6 +761,26 @@ function findStructureEvent(candles, swings, structureBias) {
   return latestEvent;
 }
 
+function isLowerTimeframe(timeframe) {
+  return timeframe === "1m" || timeframe === "5m" || timeframe === "15m";
+}
+
+// Tighter ATR padding on lower timeframes keeps stops close to the invalidation
+// level instead of the wider buffer that makes sense on swing timeframes.
+function getStopAtrMultiplier(timeframe) {
+  const multipliers = {
+    "1m": 0.06,
+    "5m": 0.08,
+    "15m": 0.1,
+    "1h": 0.12,
+    "4h": 0.15,
+    "1d": 0.18,
+    "1wk": 0.2,
+  };
+
+  return multipliers[timeframe] ?? 0.1;
+}
+
 function getStructureAgeLimit(timeframe) {
   const limits = {
     "1m": 96,
@@ -1026,7 +1046,7 @@ function getRsiConfirmation(rsiSeries, candlesLength, swings, direction) {
   };
 }
 
-function buildSetup({ candles, confidence, direction, entry, grade, invalidation, label, notes, stopLoss, summary, takeProfit1, takeProfit2, timing, triggerType }) {
+function buildSetup({ candles, confidence, confirmations, direction, entry, grade, invalidation, isSniperEntry, label, notes, stopLoss, summary, takeProfit1, takeProfit2, timing, triggerType }) {
   const roundedEntry = roundPrice(entry);
   const roundedStopLoss = roundPrice(stopLoss);
   const roundedTp1 = roundPrice(takeProfit1);
@@ -1036,10 +1056,12 @@ function buildSetup({ candles, confidence, direction, entry, grade, invalidation
 
   return {
     confidence,
+    confirmations: confirmations || null,
     direction,
     entry: roundedEntry,
     grade,
     invalidation,
+    isSniperEntry: Boolean(isSniperEntry),
     label,
     notes,
     riskReward: risk > 0 && reward > 0 ? Number((reward / risk).toFixed(2)) : null,
@@ -1070,11 +1092,14 @@ function buildSetup({ candles, confidence, direction, entry, grade, invalidation
 }
 
 function buildSetups(context) {
-  const { atr, bias, candles, fib, nearestResistance, nearestSupport, originZone, range, rsiConfirmation, selectedFvg, structureEvent } = context;
+  const { atr, bias, candles, fib, nearestResistance, nearestSupport, originZone, range, rsiConfirmation, selectedFvg, structureEvent, timeframe } = context;
 
   if (!fib || !originZone || !structureEvent) {
     return [];
   }
+
+  const lowerTf = isLowerTimeframe(timeframe);
+  const stopAtrMultiplier = getStopAtrMultiplier(timeframe);
 
   const isBullish = bias === "Bullish structure";
   const direction = isBullish ? "Long" : "Short";
@@ -1084,25 +1109,52 @@ function buildSetups(context) {
   const entry = hasTightConfluence ? (entryLow + entryHigh) / 2 : (fib.entryZone.low + fib.entryZone.high) / 2;
   const invalidationBase = fib.invalidation;
   const stopLoss = isBullish
-    ? Math.min(invalidationBase, originZone.low - atr * 0.1)
-    : Math.max(invalidationBase, originZone.high + atr * 0.1);
+    ? Math.min(invalidationBase, originZone.low - atr * stopAtrMultiplier)
+    : Math.max(invalidationBase, originZone.high + atr * stopAtrMultiplier);
   const impulseRange = Math.max(fib.anchorHigh - fib.anchorLow, 0.0000001);
   const tp1 = isBullish ? Math.max(structureEvent.breakLevel, range.midpoint, nearestResistance) : Math.min(structureEvent.breakLevel, range.midpoint, nearestSupport);
   const tp2 = isBullish ? fib.anchorHigh + impulseRange * 0.272 : fib.anchorLow - impulseRange * 0.272;
-  const confidenceScore = clamp(
+
+  // "Sniper" confirmations: the pieces that matter most for a precise, low-drawdown entry.
+  const hasRsiConfirmation = rsiConfirmation.score >= 100;
+  const isBos = structureEvent.type === "BOS";
+  const stackedConfirmations = [isBos, Boolean(selectedFvg), hasRsiConfirmation, hasTightConfluence].filter(Boolean).length;
+
+  let confidenceScore = clamp(
     45 +
-      (structureEvent.type === "BOS" ? 10 : 6) +
+      (isBos ? 10 : 6) +
       (originZone ? 10 : 0) +
       (fib ? 10 : 0) +
       (selectedFvg ? 12 : 0) +
-      (rsiConfirmation.score >= 100 ? 10 : 0),
+      (hasRsiConfirmation ? 10 : 0) +
+      (hasTightConfluence ? 6 : 0),
     40,
     96
   );
-  const confidence = confidenceScore >= 78 ? "High" : confidenceScore >= 62 ? "Medium" : "Low";
-  const grade = confidenceScore >= 82 ? "A" : confidenceScore >= 68 ? "B" : "C";
-  const setupLabel = selectedFvg ? "Confluence retracement" : "Fib retracement";
-  const summary = `${structureEvent.type} ${isBullish ? "bullish" : "bearish"} structure leads the idea. We want price back in the Fib 0.5-0.705 zone, inside ${originZone.type.toLowerCase()}, with RSI confirming the rejection.`;
+
+  // On lower timeframes, noise is higher and stops are tighter, so a setup only
+  // earns High/A-grade "sniper" status when every confirmation stacks. Anything
+  // less gets capped down rather than silently treated the same as an HTF setup.
+  const requiredStack = lowerTf ? 4 : 3;
+  if (lowerTf && stackedConfirmations < requiredStack) {
+    confidenceScore = clamp(confidenceScore - 14, 30, 96);
+  }
+
+  const confidence = confidenceScore >= (lowerTf ? 84 : 78) ? "High" : confidenceScore >= 62 ? "Medium" : "Low";
+  const grade = confidenceScore >= (lowerTf ? 88 : 82) ? "A" : confidenceScore >= 68 ? "B" : "C";
+  const isSniperEntry = lowerTf && grade === "A" && stackedConfirmations === requiredStack;
+  const setupLabel = isSniperEntry ? "Sniper confluence entry" : selectedFvg ? "Confluence retracement" : "Fib retracement";
+  const confirmations = {
+    required: requiredStack,
+    stacked: stackedConfirmations,
+    breakdown: [
+      { label: "Break of structure", met: isBos },
+      { label: "Fair value gap", met: Boolean(selectedFvg) },
+      { label: "RSI confirmation", met: hasRsiConfirmation },
+      { label: "Tight zone overlap", met: hasTightConfluence },
+    ],
+  };
+  const summary = `${structureEvent.type} ${isBullish ? "bullish" : "bearish"} structure leads the idea. We want price back in the Fib 0.5-0.705 zone, inside ${originZone.type.toLowerCase()}, with RSI confirming the rejection.${isSniperEntry ? " All confirmations are stacked — this is a high-precision entry, not just a directional one." : ""}`;
   const notes = [
     `${structureEvent.type} sets the directional bias, so this stays ${isBullish ? "buy-only" : "sell-only"}.`,
     `${originZone.type} is refined from the last ${isBullish ? "bearish" : "bullish"} candle body before the break.`,
@@ -1110,16 +1162,24 @@ function buildSetups(context) {
       ? `FVG sits inside the Fib execution zone, which sharpens the entry area.`
       : `No clean FVG inside the Fib zone, so this setup is less compressed.`,
     rsiConfirmation.label,
-  ];
+    lowerTf
+      ? `LTF stop uses a tighter ${stopAtrMultiplier}x ATR buffer for precision — expect more stop-outs on noise if you skip confirmation.`
+      : null,
+    lowerTf && !isSniperEntry
+      ? `Not all sniper confirmations stacked (${stackedConfirmations}/${requiredStack}) — treat this as lower-conviction until they do.`
+      : null,
+  ].filter(Boolean);
 
   return [
     buildSetup({
       candles,
       confidence,
+      confirmations,
       direction,
       entry,
       grade,
       invalidation: `${isBullish ? "Below" : "Above"} Fib 0.786 (${roundPrice(fib.invalidation)}) invalidates the setup`,
+      isSniperEntry,
       label: setupLabel,
       notes,
       stopLoss,
@@ -1332,6 +1392,7 @@ async function analyzeCandles(candles, marketInfo = {}) {
     rsiConfirmation,
     selectedFvg,
     structureEvent,
+    timeframe: marketInfo.timeframe,
   });
   const chartAnnotations = buildChartAnnotations({
     atr,

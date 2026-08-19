@@ -9,6 +9,21 @@ class AutomatedTradingSignals {
     this.performance = new Map();
     this.minConfidence = 65;
     this.minConfluence = 60;
+    // Lower timeframes throw off more (and noisier) signals per hour, so a flat
+    // 65/60 threshold lets weak setups through. Sniper mode raises the bar
+    // specifically for 1m/5m/15m so only the tightest confluence fires an alert.
+    this.ltfThresholds = {
+      "1m": { minConfidence: 78, minConfluence: 74 },
+      "5m": { minConfidence: 75, minConfluence: 71 },
+      "15m": { minConfidence: 72, minConfluence: 68 },
+    };
+  }
+
+  /**
+   * Resolve the confidence/confluence bar for a given timeframe.
+   */
+  getThresholdsForTimeframe(timeframe) {
+    return this.ltfThresholds[timeframe] || { minConfidence: this.minConfidence, minConfluence: this.minConfluence };
   }
 
   /**
@@ -41,7 +56,8 @@ class AutomatedTradingSignals {
     const signal = this.determineSignal(scores, confluence, data);
 
     // If signal meets thresholds, create and store it
-    if (signal.confidence >= this.minConfidence && confluence.score >= this.minConfluence) {
+    const { minConfidence, minConfluence } = this.getThresholdsForTimeframe(timeframe);
+    if (signal.confidence >= minConfidence && confluence.score >= minConfluence) {
       const signalId = `${symbol}-${timeframe}-${Date.now()}`;
       const fullSignal = {
         id: signalId,
@@ -74,7 +90,7 @@ class AutomatedTradingSignals {
       signal: 'none',
       direction: 'neutral',
       confidence: confluence.score,
-      reason: confluence.score < this.minConfluence ? 'Insufficient confluence' : 'Low confidence',
+      reason: confluence.score < minConfluence ? 'Insufficient confluence' : 'Low confidence',
       scores,
       confluence,
       timestamp: new Date().toISOString()

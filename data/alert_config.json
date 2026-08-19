@@ -1,0 +1,11 @@
+{
+  "botToken": "",
+  "chatId": "",
+  "discordWebhook": "",
+  "minConfluence": 60,
+  "timeframes": [
+    "15m",
+    "1h",
+    "4h"
+  ]
+}

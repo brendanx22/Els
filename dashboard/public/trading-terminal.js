@@ -38,6 +38,7 @@
   const regimeValue = document.getElementById("regime-value");
   const volatilityValue = document.getElementById("volatility-value");
   const setupStack = document.getElementById("setup-stack");
+  const sniperOnlyToggle = document.getElementById("sniper-only-toggle");
   const trendScoreValue = document.getElementById("trend-score-value");
   const momentumScoreValue = document.getElementById("momentum-score-value");
   const structureScoreValue = document.getElementById("structure-score-value");
@@ -92,6 +93,50 @@
   const patternHarmonicValue = document.getElementById("pattern-harmonic-value");
   const patternSmcValue = document.getElementById("pattern-smc-value");
   const patternList = document.getElementById("pattern-list");
+
+  // Shared shimmer placeholders for panels waiting on async data.
+  function renderPatternSkeleton(container, count = 3) {
+    if (!container) return;
+    container.innerHTML = Array.from({ length: count })
+      .map(
+        () => `
+        <div class="skeleton-pattern-item">
+          <div class="skeleton-stack">
+            <span class="skeleton-line" style="width:${55 + Math.round(Math.random() * 25)}%"></span>
+            <span class="skeleton-line" style="width:${30 + Math.round(Math.random() * 15)}%;height:9px"></span>
+          </div>
+          <span class="skeleton-line" style="width:52px;height:16px;border-radius:3px"></span>
+        </div>`
+      )
+      .join("");
+  }
+
+  function renderListSkeleton(container, count = 3) {
+    if (!container) return;
+    container.innerHTML = `<div class="skeleton-list">${Array.from({ length: count })
+      .map(
+        () => `
+        <div class="skeleton-row">
+          <span class="skeleton-line" style="width:${50 + Math.round(Math.random() * 30)}%"></span>
+          <span class="skeleton-line" style="width:${25 + Math.round(Math.random() * 20)}%;height:9px"></span>
+        </div>`
+      )
+      .join("")}</div>`;
+  }
+
+  function renderTableSkeleton(tbodyEl, columns, rows = 5) {
+    if (!tbodyEl) return;
+    tbodyEl.innerHTML = Array.from({ length: rows })
+      .map(
+        () => `
+        <tr class="skeleton-table-row">
+          ${Array.from({ length: columns })
+            .map(() => `<td><span class="skeleton-line" style="width:${45 + Math.round(Math.random() * 35)}%"></span></td>`)
+            .join("")}
+        </tr>`
+      )
+      .join("");
+  }
 
   // Predictive Analytics elements
   const prediction1hValue = document.getElementById("prediction-1h-value");
@@ -387,16 +432,18 @@
     
     // Display article summaries if available
     if (newsSummaryValue && newsData.articleSummaries && newsData.articleSummaries.length > 0) {
-      const summariesHtml = newsData.articleSummaries.map(article => `
-        <div style="margin-bottom: 12px; padding: 8px; background: rgba(255,255,255,0.03); border-left: 2px solid ${article.sentiment === 'positive' ? '#4caf50' : article.sentiment === 'negative' ? '#f44336' : '#9e9e9e'}; border-radius: 2px;">
-          <div style="font-size: 11px; font-weight: 600; color: var(--ink-bright); margin-bottom: 4px;">${article.summary}</div>
-          <div style="font-size: 9px; color: var(--ink-dim); display: flex; gap: 8px;">
-            <span>${article.source}</span>
-            <span>${article.publishedAt}</span>
-            <span style="color: ${article.sentiment === 'positive' ? '#4caf50' : article.sentiment === 'negative' ? '#f44336' : '#9e9e9e'}">${article.sentiment}</span>
+      const summariesHtml = newsData.articleSummaries.map(article => {
+        const sentimentClass = article.sentiment === "positive" ? "bullish" : article.sentiment === "negative" ? "bearish" : "neutral";
+        return `
+        <div class="news-article-item ${sentimentClass}">
+          <div class="news-article-summary">${escapeHtml(article.summary)}</div>
+          <div class="news-article-meta">
+            <span>${escapeHtml(article.source)}</span>
+            <span>${escapeHtml(article.publishedAt)}</span>
+            <span class="news-article-sentiment ${sentimentClass}">${escapeHtml(article.sentiment)}</span>
           </div>
-        </div>
-      `).join('');
+        </div>`;
+      }).join('');
       newsSummaryValue.innerHTML = summariesHtml;
     } else if (newsSummaryValue) {
       newsSummaryValue.textContent = newsData.summary || "No news data available.";
@@ -2981,9 +3028,51 @@
     });
   }
 
+  let lastSetups = [];
+  let sniperOnlyEnabled = false;
+  try {
+    sniperOnlyEnabled = localStorage.getItem("els_sniper_only") === "true";
+  } catch (err) {
+    sniperOnlyEnabled = false;
+  }
+
+  function setSniperOnlyEnabled(enabled) {
+    sniperOnlyEnabled = enabled;
+    try {
+      localStorage.setItem("els_sniper_only", String(enabled));
+    } catch (err) {
+      /* storage unavailable, filter still works for this session */
+    }
+    if (sniperOnlyToggle) {
+      sniperOnlyToggle.classList.toggle("active", enabled);
+      sniperOnlyToggle.setAttribute("aria-pressed", String(enabled));
+    }
+    renderSetups(lastSetups);
+  }
+
+  if (sniperOnlyToggle) {
+    sniperOnlyToggle.classList.toggle("active", sniperOnlyEnabled);
+    sniperOnlyToggle.setAttribute("aria-pressed", String(sniperOnlyEnabled));
+    sniperOnlyToggle.addEventListener("click", () => setSniperOnlyEnabled(!sniperOnlyEnabled));
+  }
+
+  function renderConfirmationChips(confirmations) {
+    if (!confirmations || !Array.isArray(confirmations.breakdown) || !confirmations.breakdown.length) {
+      return "";
+    }
+    const chips = confirmations.breakdown
+      .map((item) => `<span class="confirm-chip ${item.met ? "met" : ""}">${item.met ? "✓" : "—"} ${escapeHtml(item.label)}</span>`)
+      .join("");
+    return `<div class="confirm-checklist">${chips}</div>`;
+  }
+
   function renderSetups(setups) {
+    lastSetups = setups || [];
     setupStack.innerHTML = "";
-    if (!setups || !setups.length) {
+
+    const visibleSetups = sniperOnlyEnabled ? lastSetups.filter((setup) => setup.isSniperEntry) : lastSetups;
+
+    if (!lastSetups.length) {
       const card = document.createElement("article");
       card.className = "setup-card";
       card.innerHTML = "<span class='setup-label'>Awaiting market</span><strong>No setup yet</strong><p>Run terminal analysis to build Fib, supply and demand, FVG, and RSI-driven setups.</p>";
@@ -2991,11 +3080,23 @@
       return;
     }
 
-    setups.slice(0, 2).forEach((setup) => {
+    if (!visibleSetups.length) {
       const card = document.createElement("article");
-      card.className = `setup-card ${setup.direction.toLowerCase()}`;
+      card.className = "setup-card";
+      card.innerHTML = "<span class='setup-label'>Sniper filter on</span><strong>No sniper-grade setup right now</strong><p>Every confirmation (BOS, FVG, RSI, tight zone overlap) has to stack before a setup qualifies. Turn the filter off to see the lower-conviction plans.</p>";
+      setupStack.appendChild(card);
+      return;
+    }
+
+    visibleSetups.slice(0, 2).forEach((setup) => {
+      const card = document.createElement("article");
+      card.className = `setup-card ${setup.direction.toLowerCase()}${setup.isSniperEntry ? " sniper" : ""}`;
       const notes = (setup.notes || []).map((note) => `<li>${escapeHtml(note)}</li>`).join("");
+      const sniperBadge = setup.isSniperEntry
+        ? `<span class="sniper-badge">🎯 Sniper · ${setup.confirmations ? `${setup.confirmations.stacked}/${setup.confirmations.required}` : "all"} confirmed</span>`
+        : "";
       card.innerHTML = `
+        ${sniperBadge}
         <span class="setup-label">${escapeHtml(setup.direction)} | ${escapeHtml(setup.grade)} | ${escapeHtml(setup.triggerType)}</span>
         <strong>${escapeHtml(setup.label)}</strong>
         <p>${escapeHtml(setup.summary)}</p>
@@ -3007,6 +3108,7 @@
           <div><span>R:R</span><strong>${setup.riskReward != null ? escapeHtml(setup.riskReward) : "--"}</strong></div>
           <div><span>Confidence</span><strong>${escapeHtml(setup.confidence)}</strong></div>
         </div>
+        ${renderConfirmationChips(setup.confirmations)}
         <ul class="setup-note-list">${notes}</ul>
       `;
       setupStack.appendChild(card);
@@ -3084,6 +3186,15 @@
     rangeMidpointValue.textContent = "--";
     renderLayerTags({ analysis: { indicators: { smc: {} } } });
     renderSetups([]);
+    if (loading) {
+      renderPatternSkeleton(patternList, 3);
+      renderPatternSkeleton(document.getElementById("strategy-pattern-list"), 3);
+    } else {
+      const idleMsg = "<p class='thesis-copy' style='margin:0'>No patterns detected yet — run terminal analysis on a symbol.</p>";
+      if (patternList) patternList.innerHTML = idleMsg;
+      const strategyPatternList = document.getElementById("strategy-pattern-list");
+      if (strategyPatternList) strategyPatternList.innerHTML = idleMsg;
+    }
     setList(riskList, [], "Waiting for AI risk review.");
     setList(nextActionsList, [], "Run terminal analysis to generate an AI action plan.");
     setList(invalidationList, [], "No invalidation rules yet.");
@@ -3814,7 +3925,7 @@
   async function fetchScreenerData() {
     if (!screenerTableBody) return;
     try {
-      screenerTableBody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--ink-dim)">Scanning live markets...</td></tr>`;
+      renderTableSkeleton(screenerTableBody, 7, 6);
       const currentTf = userSelection?.timeframe || "1h";
       const res = await fetch(`/api/screener?timeframe=${encodeURIComponent(currentTf)}`);
       if (!res.ok) throw new Error("Failed to scan markets");
@@ -3822,7 +3933,7 @@
       screenerData = json.markets || [];
       renderScreenerTable();
     } catch (err) {
-      screenerTableBody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:#f23645">${escapeHtml(err.message)}</td></tr>`;
+      screenerTableBody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--red)">${escapeHtml(err.message)}</td></tr>`;
     }
   }
 
@@ -3892,40 +4003,43 @@
   }
 
   async function updateCalendarAndRisk(symbol) {
+    if (calendarContainer) renderListSkeleton(calendarContainer, 4);
     try {
       const res = await fetch(`/api/calendar?symbol=${encodeURIComponent(symbol || "EURUSD")}`);
-      if (!res.ok) return;
+      if (!res.ok) throw new Error("Calendar feed unavailable");
       const data = await res.json();
 
       // Update Risk Warning Banner
-      if (data.risk && data.risk.hasHighImpactRisk && macroRiskBanner && macroRiskText) {
-        macroRiskText.textContent = data.risk.warning;
-        macroRiskBanner.hidden = false;
-      } else if (macroRiskBanner) {
-        macroRiskBanner.hidden = true;
+      if (riskBanner && data.risk) {
+        riskBanner.hidden = !data.risk.highImpact;
+        if (data.risk.highImpact) {
+          macroRiskText.textContent = data.risk.message || "High-Impact News Release Imminent!";
+        }
       }
 
       // Update Calendar Tab Pane
       if (calendarContainer && data.events) {
         calendarContainer.innerHTML = "";
+        if (!data.events.length) {
+          calendarContainer.innerHTML = "<p class='thesis-copy' style='margin:0'>No high-impact releases on the horizon right now.</p>";
+          return;
+        }
         data.events.forEach(evt => {
           const card = document.createElement("div");
           card.className = "calendar-event-card";
           card.innerHTML = `
-            <div class="calendar-event-header">
-              <span class="cal-impact-badge ${evt.impact}">${evt.currency} • ${evt.impact.toUpperCase()}</span>
-              <span class="cal-countdown">in ${evt.minutesUntil > 60 ? Math.floor(evt.minutesUntil / 60) + 'h ' + (evt.minutesUntil % 60) + 'm' : evt.minutesUntil + 'm'}</span>
-            </div>
-            <div class="calendar-event-title">${escapeHtml(evt.title)}</div>
-            <div class="calendar-event-meta">
-              <span>Forecast: <strong>${evt.forecast}</strong></span>
-              <span>Prior: <strong>${evt.previous}</strong></span>
-            </div>
+            <div class="calendar-event-time">${escapeHtml(evt.time)}</div>
+            <div class="calendar-event-name">${escapeHtml(evt.name)}</div>
+            <div class="calendar-event-impact ${evt.impact.toLowerCase()}">${escapeHtml(evt.impact)}</div>
           `;
           calendarContainer.appendChild(card);
         });
       }
-    } catch (_) {}
+    } catch (err) {
+      if (calendarContainer) {
+        calendarContainer.innerHTML = `<p class='thesis-copy' style='margin:0;color:var(--red)'>Couldn't load the economic calendar. Try switching tabs to retry.</p>`;
+      }
+    }
   }
 
   // Hook calendar into symbol switch & tab click
@@ -4831,17 +4945,29 @@
     });
   }
 
-  // Toast notifier helper
-  function showToast(msg) {
+  // Toast notifier — stacks multiple toasts, sits above the bottom bar and
+  // respects the safe-area inset instead of a hardcoded pixel offset.
+  let toastContainer = document.querySelector(".toast-stack");
+  if (!toastContainer) {
+    toastContainer = document.createElement("div");
+    toastContainer.className = "toast-stack";
+    toastContainer.setAttribute("role", "status");
+    toastContainer.setAttribute("aria-live", "polite");
+    document.body.appendChild(toastContainer);
+  }
+
+  function showToast(msg, tone = "default") {
     const toast = document.createElement("div");
-    toast.style.cssText = "position:fixed;bottom:70px;right:20px;z-index:99999;background:var(--surface);border:1px solid var(--accent);color:var(--ink-bright);padding:10px 16px;border-radius:6px;font-size:12px;font-weight:600;box-shadow:0 10px 25px rgba(0,0,0,0.5);animation:fadeIn 0.2s ease;";
+    toast.className = `toast-item${tone && tone !== "default" ? ` ${tone}` : ""}`;
     toast.textContent = msg;
-    document.body.appendChild(toast);
+    toastContainer.appendChild(toast);
+    // Force layout before adding the visible class so the entrance transition plays.
+    requestAnimationFrame(() => toast.classList.add("visible"));
     setTimeout(() => {
-      toast.style.opacity = "0";
-      toast.style.transition = "opacity 0.3s";
-      setTimeout(() => toast.remove(), 300);
-    }, 3000);
+      toast.classList.remove("visible");
+      toast.classList.add("leaving");
+      setTimeout(() => toast.remove(), 220);
+    }, 3200);
   }
 
   // Initialize paper portfolio & calendar on boot

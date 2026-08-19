@@ -19,7 +19,7 @@
   --border-strong: #363d5a;
   --ink:           #d1d4dc;
   --ink-bright:    #f0f3fa;
-  --ink-dim:       #787b86;
+  --ink-dim:       #8b8fa3;
   --accent:        #2962ff;
   --accent-glow:   rgba(41, 98, 255, 0.2);
   --accent-soft:   rgba(41, 98, 255, 0.1);
@@ -72,6 +72,20 @@ body.light-mode {
 
 /* ── Reset ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+/* Baseline keyboard-focus visibility. Mouse/touch users never see this
+   (focus-visible only triggers for keyboard nav); specific components can
+   still override with a more tailored ring, like .sniper-filter-toggle does. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
 
 html, body {
   height: 100%;
@@ -877,11 +891,88 @@ body.light-mode .annotation-zone.smc-liquidity {
 .data-cell span, .signal-cell span { font-size: 9px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.08em; }
 .data-cell strong, .signal-cell strong { font-size: 13px; font-weight: 600; color: var(--ink); }
 
+.panel-label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.panel-label-row .panel-label { margin-bottom: 0; }
+
+.sniper-filter-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 9px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-dim);
+  background: var(--bg-dark);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: color var(--transition), border-color var(--transition), background var(--transition);
+  white-space: nowrap;
+}
+.sniper-filter-toggle:hover { color: var(--ink); border-color: var(--border-strong); }
+.sniper-filter-toggle:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.sniper-filter-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ink-dim);
+  transition: background var(--transition), box-shadow var(--transition);
+}
+.sniper-filter-toggle.active {
+  color: var(--gold);
+  border-color: rgba(247, 147, 26, 0.4);
+  background: var(--gold-soft);
+}
+.sniper-filter-toggle.active .sniper-filter-dot {
+  background: var(--gold);
+  box-shadow: 0 0 6px rgba(247, 147, 26, 0.7);
+}
+
 .setup-stack { display: flex; flex-direction: column; gap: 8px; }
 .setup-card { padding: 12px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: var(--radius); }
+.setup-card.sniper {
+  border-color: rgba(247, 147, 26, 0.45);
+  background: linear-gradient(180deg, rgba(247, 147, 26, 0.07), var(--bg-dark) 65%);
+  box-shadow: 0 0 0 1px rgba(247, 147, 26, 0.12), 0 0 18px rgba(247, 147, 26, 0.1);
+}
 .setup-label { font-size: 9px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 3px; }
 .setup-card strong { font-size: 14px; font-weight: 700; color: var(--ink-bright); display: block; margin-bottom: 4px; }
 .setup-card p { font-size: 12px; color: var(--ink-dim); line-height: 1.55; }
+
+.sniper-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold);
+  background: var(--gold-soft);
+  border: 1px solid rgba(247, 147, 26, 0.4);
+  padding: 3px 7px;
+  border-radius: 3px;
+  margin-bottom: 7px;
+}
+
+.confirm-checklist { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
+.confirm-chip {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 3px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  color: var(--ink-dim);
+  background: var(--bg-dark);
+  white-space: nowrap;
+}
+.confirm-chip.met {
+  color: var(--green);
+  border-color: rgba(38, 166, 154, 0.4);
+  background: var(--green-soft);
+}
 
 .signal-panel { background: var(--surface); border-bottom: 1px solid var(--border); padding: 16px 14px; border-left: 3px solid var(--green); }
 .signal-panel[hidden] { display: none; }
@@ -923,6 +1014,17 @@ body.light-mode .annotation-zone.smc-liquidity {
 .news-summary { font-size: 13px; color: var(--ink-dim); line-height: 1.65; padding: 12px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: var(--radius); margin-top: 8px; min-height: 60px; }
 .news-summary:empty:before { content: "No news data available."; color: var(--ink-dim); }
 
+.news-article-item { margin-bottom: 12px; padding: 8px; background: var(--surface); border-left: 2px solid var(--border-strong); border-radius: 2px; }
+.news-article-item.bullish { border-left-color: var(--green); }
+.news-article-item.bearish { border-left-color: var(--red); }
+.news-article-item:last-child { margin-bottom: 0; }
+.news-article-summary { font-size: 11px; font-weight: 600; color: var(--ink-bright); margin-bottom: 4px; line-height: 1.45; }
+.news-article-meta { font-size: 9px; color: var(--ink-dim); display: flex; gap: 8px; flex-wrap: wrap; }
+.news-article-sentiment { font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.news-article-sentiment.bullish { color: var(--green); }
+.news-article-sentiment.bearish { color: var(--red); }
+.news-article-sentiment.neutral { color: var(--ink-dim); }
+
 .pattern-list { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
 .pattern-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: var(--radius); }
 .pattern-name { font-size: 13px; font-weight: 500; color: var(--ink); }
@@ -948,6 +1050,97 @@ body.light-mode .annotation-zone.smc-liquidity {
 .ws-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--ink-dim); margin-right: 5px; vertical-align: middle; }
 .ws-dot.connected { background: var(--green); box-shadow: 0 0 5px var(--green); }
 .ws-dot.error { background: var(--red); }
+
+/* ══════════════════════════════════════════
+   SKELETON LOADING STATE
+   Shimmer placeholders instead of static
+   "Scanning..." text while data is fetched.
+   ══════════════════════════════════════════ */
+@keyframes skeleton-shimmer {
+  0%   { background-position: -150% 0; }
+  100% { background-position: 150% 0; }
+}
+.skeleton-line {
+  display: block;
+  height: 11px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--border) 25%, var(--border-strong) 45%, var(--border) 65%);
+  background-size: 300% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+.skeleton-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--bg-dark);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.skeleton-pattern-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-dark);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.skeleton-pattern-item .skeleton-stack { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.skeleton-list { display: flex; flex-direction: column; gap: 4px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-line { animation: none; opacity: 0.6; }
+}
+
+/* ══════════════════════════════════════════
+   TOAST NOTIFICATIONS
+   Sits above the bottom tab bar and safe-area
+   inset rather than a hardcoded pixel offset,
+   so it never collides with nav on a phone.
+   ══════════════════════════════════════════ */
+.toast-stack {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--bottombar-h) + var(--safe-b) + 14px);
+  transform: translateX(-50%);
+  z-index: 300;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 8px;
+  align-items: center;
+  width: min(92vw, 360px);
+  pointer-events: none;
+}
+
+.toast-item {
+  pointer-events: auto;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  color: var(--ink-bright);
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  box-shadow: var(--shadow-lg);
+  opacity: 0;
+  transform: translateY(8px) scale(0.98);
+  transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+  max-width: 100%;
+  word-break: break-word;
+}
+.toast-item.visible { opacity: 1; transform: translateY(0) scale(1); }
+.toast-item.leaving { opacity: 0; transform: translateY(4px) scale(0.98); }
+
+.toast-item.success { border-color: rgba(38, 166, 154, 0.5); }
+.toast-item.error   { border-color: rgba(239, 83, 80, 0.55); }
+.toast-item.info    { border-color: rgba(41, 98, 255, 0.5); }
+
+@media (min-width: 768px) {
+  .toast-stack { left: auto; right: 24px; bottom: 24px; transform: none; }
+}
 
 /* ══════════════════════════════════════════
    BOTTOM BAR — levels / brief / log

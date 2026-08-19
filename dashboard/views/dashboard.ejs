@@ -73,18 +73,18 @@
         </div>
 
         <div class="topbar-actions">
-          <button class="topbar-btn accent" id="screener-toggle-btn" aria-label="Open Market Screener">
+          <button type="button" class="topbar-btn accent" id="screener-toggle-btn" aria-label="Open Market Screener">
             <svg viewBox="0 0 16 16" fill="currentColor"><path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zm8 0A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm-8 8A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3zm8 0A1.5 1.5 0 0 1 10.5 9h3a1.5 1.5 0 0 1 1.5 1.5v3a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 13.5v-3z"/></svg>
             <span>Screener</span>
           </button>
           <span class="toolbar-chip" id="watch-state">Paused</span>
           <span class="toolbar-chip" id="next-refresh">Live watch off</span>
-          <button class="topbar-btn" id="theme-toggle-btn" aria-label="Toggle theme">
+          <button type="button" class="topbar-btn" id="theme-toggle-btn" aria-label="Toggle theme">
             <svg viewBox="0 0 16 16" fill="currentColor" id="theme-icon">
               <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 13a6 6 0 1 1 0-12 6 6 0 0 1 0 12z"/>
             </svg>
           </button>
-          <button class="topbar-btn primary" id="panel-toggle-btn" aria-label="Toggle analysis panel">
+          <button type="button" class="topbar-btn primary" id="panel-toggle-btn" aria-label="Toggle analysis panel">
             <svg viewBox="0 0 16 16" fill="currentColor"><path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zm8 0A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm-8 8A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3zm8 0A1.5 1.5 0 0 1 10.5 9h3a1.5 1.5 0 0 1 1.5 1.5v3a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 13.5v-3z"/></svg>
             <span>Analysis</span>
           </button>
@@ -104,7 +104,7 @@
               <span class="macro-risk-icon">⚠️</span>
               <span id="macro-risk-text" class="macro-risk-text">High-Impact News Release Imminent!</span>
             </div>
-            <button id="macro-risk-dismiss" class="macro-risk-dismiss" aria-label="Dismiss">×</button>
+            <button type="button" id="macro-risk-dismiss" class="macro-risk-dismiss" aria-label="Dismiss">×</button>
           </div>
 
           <div class="chart-toolbar">
@@ -115,12 +115,12 @@
             </div>
             <div class="toolbar-meta">
               <div class="timeframe-buttons" id="timeframe-buttons">
-                <button class="tf-btn" data-tf="1m">1m</button>
-                <button class="tf-btn" data-tf="5m">5m</button>
-                <button class="tf-btn" data-tf="15m">15m</button>
-                <button class="tf-btn active" data-tf="1h">1h</button>
-                <button class="tf-btn" data-tf="4h">4h</button>
-                <button class="tf-btn" data-tf="1d">1d</button>
+                <button type="button" class="tf-btn" data-tf="1m">1m</button>
+                <button type="button" class="tf-btn" data-tf="5m">5m</button>
+                <button type="button" class="tf-btn" data-tf="15m">15m</button>
+                <button type="button" class="tf-btn active" data-tf="1h">1h</button>
+                <button type="button" class="tf-btn" data-tf="4h">4h</button>
+                <button type="button" class="tf-btn" data-tf="1d">1d</button>
               </div>
               <button id="rr-tool-btn" class="chart-action-btn" type="button" title="Toggle Risk-to-Reward Box">📐 R:R Tool</button>
               <div class="chart-view-toggle" id="chart-view-toggle" role="tablist" aria-label="Chart mode">
@@ -169,20 +169,20 @@
 
           <div class="sidebar-header">
             <span class="sidebar-header-title">Analysis</span>
-            <button class="sidebar-close-btn" id="sidebar-close-btn" aria-label="Close">
+            <button type="button" class="sidebar-close-btn" id="sidebar-close-btn" aria-label="Close">
               <svg viewBox="0 0 16 16" fill="currentColor"><path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854z"/></svg>
             </button>
           </div>
 
           <!-- Tab bar -->
           <nav class="sidebar-tabs" role="tablist">
-            <button class="sidebar-tab active" data-tab="strategy" role="tab">Strategy</button>
-            <button class="sidebar-tab" data-tab="patterns" role="tab">Patterns</button>
-            <button class="sidebar-tab" data-tab="signals" role="tab">Signals</button>
-            <button class="sidebar-tab" data-tab="paper" role="tab">Paper</button>
-            <button class="sidebar-tab" data-tab="news" role="tab">News</button>
-            <button class="sidebar-tab" data-tab="calendar" role="tab">Calendar</button>
-            <button class="sidebar-tab" data-tab="more" role="tab">More</button>
+            <button type="button" class="sidebar-tab active" data-tab="strategy" role="tab">Strategy</button>
+            <button type="button" class="sidebar-tab" data-tab="patterns" role="tab">Patterns</button>
+            <button type="button" class="sidebar-tab" data-tab="signals" role="tab">Signals</button>
+            <button type="button" class="sidebar-tab" data-tab="paper" role="tab">Paper</button>
+            <button type="button" class="sidebar-tab" data-tab="news" role="tab">News</button>
+            <button type="button" class="sidebar-tab" data-tab="calendar" role="tab">Calendar</button>
+            <button type="button" class="sidebar-tab" data-tab="more" role="tab">More</button>
           </nav>
 
           <div class="sidebar-content">
@@ -225,7 +225,9 @@
               <div class="sidebar-panel">
                 <div class="panel-label">Key Formations</div>
                 <div class="pattern-list" id="strategy-pattern-list">
-                  <p class="thesis-copy" style="margin:0">Scanning market patterns...</p>
+                  <div class="skeleton-pattern-item"><div class="skeleton-stack"><span class="skeleton-line" style="width:65%"></span><span class="skeleton-line" style="width:35%;height:9px"></span></div><span class="skeleton-line" style="width:52px;height:16px;border-radius:3px"></span></div>
+                  <div class="skeleton-pattern-item"><div class="skeleton-stack"><span class="skeleton-line" style="width:70%"></span><span class="skeleton-line" style="width:40%;height:9px"></span></div><span class="skeleton-line" style="width:52px;height:16px;border-radius:3px"></span></div>
+                  <div class="skeleton-pattern-item"><div class="skeleton-stack"><span class="skeleton-line" style="width:55%"></span><span class="skeleton-line" style="width:30%;height:9px"></span></div><span class="skeleton-line" style="width:52px;height:16px;border-radius:3px"></span></div>
                 </div>
               </div>
 
@@ -242,7 +244,12 @@
               </div>
 
               <div class="sidebar-panel">
-                <div class="panel-label">Trade Plans</div>
+                <div class="panel-label-row">
+                  <div class="panel-label">Trade Plans</div>
+                  <button type="button" id="sniper-only-toggle" class="sniper-filter-toggle" aria-pressed="false">
+                    <span class="sniper-filter-dot"></span> Sniper only
+                  </button>
+                </div>
                 <div id="setup-stack" class="setup-stack">
                   <article class="setup-card">
                     <div class="setup-label">Awaiting market</div>
@@ -265,7 +272,9 @@
                   <div class="data-cell signal-cell"><span>SMC</span><strong id="pattern-smc-value" class="pattern-smc-value">0</strong></div>
                 </div>
                 <div class="pattern-list" id="pattern-list">
-                  <p class="thesis-copy" style="margin:0">Scanning market patterns...</p>
+                  <div class="skeleton-pattern-item"><div class="skeleton-stack"><span class="skeleton-line" style="width:65%"></span><span class="skeleton-line" style="width:35%;height:9px"></span></div><span class="skeleton-line" style="width:52px;height:16px;border-radius:3px"></span></div>
+                  <div class="skeleton-pattern-item"><div class="skeleton-stack"><span class="skeleton-line" style="width:70%"></span><span class="skeleton-line" style="width:40%;height:9px"></span></div><span class="skeleton-line" style="width:52px;height:16px;border-radius:3px"></span></div>
+                  <div class="skeleton-pattern-item"><div class="skeleton-stack"><span class="skeleton-line" style="width:55%"></span><span class="skeleton-line" style="width:30%;height:9px"></span></div><span class="skeleton-line" style="width:52px;height:16px;border-radius:3px"></span></div>
                 </div>
               </div>
             </div><!-- /pane-patterns -->
@@ -286,7 +295,7 @@
                   <div class="data-cell signal-cell"><span>R:R</span><strong id="signal-rr-value">--</strong></div>
                 </div>
                 <p id="signal-catalyst" class="thesis-copy" style="margin-top:8px">--</p>
-                <button class="action-btn-full" id="paper-trade-signal-btn" style="margin-top:10px">⚡ Execute Paper Trade</button>
+                <button type="button" class="action-btn-full" id="paper-trade-signal-btn" style="margin-top:10px">⚡ Execute Paper Trade</button>
               </div>
 
               <div class="sidebar-panel">
@@ -360,9 +369,9 @@
                 <div class="mt5-field-row">
                   <label class="mt5-label">Volume</label>
                   <div class="mt5-stepper">
-                    <button class="mt5-step-btn" id="mt5-vol-down" aria-label="Decrease volume">−</button>
+                    <button type="button" class="mt5-step-btn" id="mt5-vol-down" aria-label="Decrease volume">−</button>
                     <input type="number" class="mt5-step-input" id="mt5-volume" value="1.00" min="0.01" step="0.01" />
-                    <button class="mt5-step-btn" id="mt5-vol-up" aria-label="Increase volume">+</button>
+                    <button type="button" class="mt5-step-btn" id="mt5-vol-up" aria-label="Increase volume">+</button>
                   </div>
                 </div>
 
@@ -370,9 +379,9 @@
                 <div class="mt5-field-row mt5-pending-field" id="mt5-price-row" style="display:none;">
                   <label class="mt5-label">Price</label>
                   <div class="mt5-stepper">
-                    <button class="mt5-step-btn" id="mt5-price-down" aria-label="Decrease price">−</button>
+                    <button type="button" class="mt5-step-btn" id="mt5-price-down" aria-label="Decrease price">−</button>
                     <input type="number" class="mt5-step-input" id="mt5-price" step="0.0001" />
-                    <button class="mt5-step-btn" id="mt5-price-up" aria-label="Increase price">+</button>
+                    <button type="button" class="mt5-step-btn" id="mt5-price-up" aria-label="Increase price">+</button>
                   </div>
                 </div>
 
@@ -380,9 +389,9 @@
                 <div class="mt5-field-row mt5-pending-field" id="mt5-stoplimit-row" style="display:none;">
                   <label class="mt5-label">Stop Limit Price</label>
                   <div class="mt5-stepper">
-                    <button class="mt5-step-btn" id="mt5-stoplimit-down" aria-label="Decrease stop limit">−</button>
+                    <button type="button" class="mt5-step-btn" id="mt5-stoplimit-down" aria-label="Decrease stop limit">−</button>
                     <input type="number" class="mt5-step-input" id="mt5-stoplimit-price" step="0.0001" />
-                    <button class="mt5-step-btn" id="mt5-stoplimit-up" aria-label="Increase stop limit">+</button>
+                    <button type="button" class="mt5-step-btn" id="mt5-stoplimit-up" aria-label="Increase stop limit">+</button>
                   </div>
                 </div>
 
@@ -390,9 +399,9 @@
                 <div class="mt5-field-row">
                   <label class="mt5-label">Stop Loss</label>
                   <div class="mt5-stepper">
-                    <button class="mt5-step-btn" id="mt5-sl-down" aria-label="Decrease SL">−</button>
+                    <button type="button" class="mt5-step-btn" id="mt5-sl-down" aria-label="Decrease SL">−</button>
                     <input type="number" class="mt5-step-input" id="mt5-sl" step="0.0001" placeholder="0.0000" />
-                    <button class="mt5-step-btn" id="mt5-sl-up" aria-label="Increase SL">+</button>
+                    <button type="button" class="mt5-step-btn" id="mt5-sl-up" aria-label="Increase SL">+</button>
                   </div>
                 </div>
 
@@ -400,9 +409,9 @@
                 <div class="mt5-field-row">
                   <label class="mt5-label">Take Profit</label>
                   <div class="mt5-stepper">
-                    <button class="mt5-step-btn" id="mt5-tp-down" aria-label="Decrease TP">−</button>
+                    <button type="button" class="mt5-step-btn" id="mt5-tp-down" aria-label="Decrease TP">−</button>
                     <input type="number" class="mt5-step-input" id="mt5-tp" step="0.0001" placeholder="0.0000" />
-                    <button class="mt5-step-btn" id="mt5-tp-up" aria-label="Increase TP">+</button>
+                    <button type="button" class="mt5-step-btn" id="mt5-tp-up" aria-label="Increase TP">+</button>
                   </div>
                 </div>
 
@@ -420,11 +429,11 @@
 
                 <!-- Sell / Buy Buttons -->
                 <div class="mt5-action-row">
-                  <button class="mt5-exec-btn sell" id="mt5-sell-btn">
+                  <button type="button" class="mt5-exec-btn sell" id="mt5-sell-btn">
                     <span class="mt5-exec-label">Sell</span>
                     <span class="mt5-exec-price" id="mt5-bid-price">--</span>
                   </button>
-                  <button class="mt5-exec-btn buy" id="mt5-buy-btn">
+                  <button type="button" class="mt5-exec-btn buy" id="mt5-buy-btn">
                     <span class="mt5-exec-label">Buy</span>
                     <span class="mt5-exec-price" id="mt5-ask-price">--</span>
                   </button>
@@ -449,13 +458,6 @@
                     <strong id="paper-winrate-value">0%</strong>
                   </div>
                 </div>
-
-              </div><!-- /mt5-order-panel -->
-
-              <!-- Active Open Positions -->
-              <div class="sidebar-panel">
-                <div class="panel-label">Trade</div>
-                <div id="paper-positions-container" class="paper-positions-list">
                   <p class="thesis-copy" style="margin:0">No active trades.</p>
                 </div>
               </div>
@@ -464,7 +466,7 @@
               <div class="sidebar-panel">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
                   <div class="panel-label" style="margin:0">History</div>
-                  <button class="action-btn-mini" id="reset-paper-account-btn">🔄 Reset $100k</button>
+                  <button type="button" class="action-btn-mini" id="reset-paper-account-btn">🔄 Reset $100k</button>
                 </div>
                 <div id="paper-history-container" class="paper-history-list">
                   <p class="thesis-copy" style="margin:0">No closed trades yet.</p>
@@ -517,7 +519,11 @@
               <div class="sidebar-panel">
                 <div class="panel-label">Macro Economic Horizon</div>
                 <div id="calendar-events-container" class="calendar-events-list">
-                  <p class="thesis-copy" style="margin:0">Loading upcoming economic releases...</p>
+                  <div class="skeleton-list">
+                    <div class="skeleton-row"><span class="skeleton-line" style="width:60%"></span><span class="skeleton-line" style="width:35%;height:9px"></span></div>
+                    <div class="skeleton-row"><span class="skeleton-line" style="width:50%"></span><span class="skeleton-line" style="width:30%;height:9px"></span></div>
+                    <div class="skeleton-row"><span class="skeleton-line" style="width:65%"></span><span class="skeleton-line" style="width:40%;height:9px"></span></div>
+                  </div>
                 </div>
               </div>
 
@@ -544,29 +550,35 @@
                     <input type="text" id="cfg-tg-chatid" placeholder="@mychannel or -100123..." />
                   </div>
 
-                  <div class="paper-input-group" style="margin-bottom:8px">
                     <label>Scanner Timeframes (Multi-TF)</label>
                     <div style="display:flex;gap:6px;margin-top:4px;" id="scanner-tf-pills">
                       <label style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--ink-bright);cursor:pointer;"><input type="checkbox" id="tf-15m" value="15m" checked /> 15m</label>
                       <label style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--ink-bright);cursor:pointer;"><input type="checkbox" id="tf-1h" value="1h" checked /> 1h</label>
-                      <label style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--ink-bright);cursor:pointer;"><input type="checkbox" id="tf-4h" value="4h" checked /> 4h</label>
-                    </div>
+                      <button type="button" class="action-btn-small" id="test-discord-btn" style="margin-bottom:12px">Test Discord Webhook</button>
+
+                  <div class="paper-input-group" style="margin-bottom:8px">
+                    <label>Telegram Bot Token</label>
+                    <input type="text" id="cfg-telegram-token" placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11" />
                   </div>
 
-                  <div class="paper-input-group" style="margin-bottom:10px">
-                    <label>Alert Confluence Sensitivity</label>
-                    <select id="cfg-min-confluence" style="background:var(--surface);border:1px solid var(--border-strong);color:var(--ink-bright);padding:6px 8px;border-radius:4px;width:100%;font-size:11px;">
-                      <option value="55">55% - High Frequency (All Setups)</option>
-                      <option value="60" selected>60% - Moderate (Recommended)</option>
-                      <option value="65">65% - Balanced & Solid</option>
-                      <option value="70">70% - High Confidence</option>
-                      <option value="75">75% - Ultra Strict (Rare A+)</option>
+                  <div class="paper-input-group" style="margin-bottom:8px">
+                    <label>Telegram Chat ID</label>
+                    <input type="text" id="cfg-telegram-chatid" placeholder="123456789" />
+                  </div>
+
+                  <div class="paper-input-group" style="margin-bottom:12px">
+                    <label>Alert Tone</label>
+                    <select id="cfg-alert-tone">
+                      <option value="default">Default</option>
+                      <option value="success">Success (Green)</option>
+                      <option value="error">Error (Red)</option>
+                      <option value="info">Info (Blue)</option>
                     </select>
                   </div>
 
-                  <button class="action-btn-small" id="test-telegram-btn" style="margin-bottom:8px">Test Telegram Alert</button>
-                  <button class="action-btn-small" id="run-scanner-cron-btn" style="margin-bottom:8px;background:rgba(0,255,136,0.1);border-color:var(--accent);color:var(--accent);">⚡ Scan All Timeframes Now (15m, 1h, 4h)</button>
-                  <button class="action-btn-small" id="copy-cron-url-btn" style="margin-bottom:12px;background:rgba(41,98,255,0.1);border-color:var(--accent);color:var(--ink-bright);">📋 Copy 24/7 Cron Ping URL (For Offline Alerts)</button>
+                  <button type="button" class="action-btn-small" id="test-telegram-btn" style="margin-bottom:8px">Test Telegram Alert</button>
+                  <button type="button" class="action-btn-small" id="run-scanner-cron-btn" style="margin-bottom:8px;background:rgba(0,255,136,0.1);border-color:var(--accent);color:var(--accent);">⚡ Scan All Timeframes Now (15m, 1h, 4h)</button>
+                  <button type="button" class="action-btn-small" id="copy-cron-url-btn" style="margin-bottom:12px;background:rgba(41,98,255,0.1);border-color:var(--accent);color:var(--ink-bright);">📋 Copy 24/7 Cron Ping URL (For Offline Alerts)</button>
                   <div id="scanner-result-box" style="display:none;font-size:11px;padding:8px;background:rgba(0,0,0,0.4);border-radius:4px;border:1px solid var(--border-subtle);margin-bottom:12px;color:var(--ink);line-height:1.4;"></div>
                 </div>
               </div>
@@ -574,7 +586,7 @@
               <div class="sidebar-panel">
                 <div class="panel-label">🔌 Broker Webhook Payload Exporter</div>
                 <p class="thesis-copy" style="margin-bottom:8px">Export standardized JSON payload for MetaTrader (MT4/MT5), Binance, or Bybit bridges:</p>
-                <button class="action-btn-small" id="copy-broker-webhook-btn">📋 Copy Active Setup JSON</button>
+                <button type="button" class="action-btn-small" id="copy-broker-webhook-btn">📋 Copy Active Setup JSON</button>
               </div>
 
               <div class="sidebar-panel">
@@ -603,15 +615,15 @@
               <span class="screener-title" id="screener-dialog-title">⚡ Multi-Asset Market Screener</span>
               <span class="screener-sub">Live quantitative scans across Crypto, Forex &amp; Commodities</span>
             </div>
-            <button class="screener-close-btn" id="screener-close-btn" aria-label="Close Market Screener">×</button>
+            <button type="button" class="screener-close-btn" id="screener-close-btn" aria-label="Close Market Screener">×</button>
           </div>
           <div class="screener-toolbar">
             <div class="screener-categories" id="screener-categories">
-              <button class="screener-cat-btn active" data-cat="all">All</button>
-              <button class="screener-cat-btn" data-cat="crypto">Crypto</button>
-              <button class="screener-cat-btn" data-cat="forex">Forex</button>
-              <button class="screener-cat-btn" data-cat="commodity">Commodities</button>
-              <button class="screener-cat-btn" data-cat="indices">Indices</button>
+              <button type="button" class="screener-cat-btn active" data-cat="all">All</button>
+              <button type="button" class="screener-cat-btn" data-cat="crypto">Crypto</button>
+              <button type="button" class="screener-cat-btn" data-cat="forex">Forex</button>
+              <button type="button" class="screener-cat-btn" data-cat="commodity">Commodities</button>
+              <button type="button" class="screener-cat-btn" data-cat="indices">Indices</button>
             </div>
             <input type="text" id="screener-filter-input" class="screener-filter-input" placeholder="Search pair..." />
           </div>
@@ -629,9 +641,9 @@
                 </tr>
               </thead>
               <tbody id="screener-table-body">
-                <tr>
-                  <td colspan="7" style="text-align:center;padding:24px;color:var(--ink-dim)">Scanning live markets...</td>
-                </tr>
+                <tr><td><span class="skeleton-line" style="width:70%"></span></td><td><span class="skeleton-line" style="width:60%"></span></td><td><span class="skeleton-line" style="width:50%"></span></td><td><span class="skeleton-line" style="width:65%"></span></td><td><span class="skeleton-line" style="width:55%"></span></td><td><span class="skeleton-line" style="width:60%"></span></td><td><span class="skeleton-line" style="width:45%"></span></td></tr>
+                <tr><td><span class="skeleton-line" style="width:60%"></span></td><td><span class="skeleton-line" style="width:50%"></span></td><td><span class="skeleton-line" style="width:65%"></span></td><td><span class="skeleton-line" style="width:55%"></span></td><td><span class="skeleton-line" style="width:60%"></span></td><td><span class="skeleton-line" style="width:50%"></span></td><td><span class="skeleton-line" style="width:65%"></span></td></tr>
+                <tr><td><span class="skeleton-line" style="width:65%"></span></td><td><span class="skeleton-line" style="width:55%"></span></td><td><span class="skeleton-line" style="width:60%"></span></td><td><span class="skeleton-line" style="width:50%"></span></td><td><span class="skeleton-line" style="width:65%"></span></td><td><span class="skeleton-line" style="width:55%"></span></td><td><span class="skeleton-line" style="width:60%"></span></td></tr>
               </tbody>
             </table>
           </div>
@@ -642,10 +654,10 @@
       <section class="tv-bottom" id="tv-bottom">
 
         <div class="tv-bottom-header" id="tv-bottom-header">
-          <span class="bottom-tab active" data-bottom-tab="levels">Levels</span>
+          <span class="bottom-tab" data-bottom-tab="levels">Levels</span>
           <span class="bottom-tab" data-bottom-tab="brief">AI Brief</span>
           <span class="bottom-tab" data-bottom-tab="log">Log</span>
-          <button class="bottom-toggle-btn" id="bottom-toggle-btn" aria-label="Expand levels">
+          <button type="button" class="bottom-toggle-btn" id="bottom-toggle-btn" aria-label="Expand levels">
             <span>Expand</span>
             <svg viewBox="0 0 16 16" fill="currentColor"><path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/></svg>
           </button>
@@ -694,7 +706,7 @@
             <div class="web-terminal-bar">
               <span class="web-terminal-prompt">els&gt;</span>
               <input type="text" id="web-terminal-input" class="web-terminal-input" placeholder="Type terminal command e.g. analyze BTCUSD 15m..." autocomplete="off" />
-              <button id="web-terminal-btn" class="web-terminal-btn">Run</button>
+              <button type="button" id="web-terminal-btn" class="web-terminal-btn">Run</button>
             </div>
             <ol id="command-log" class="command-log">
               <li>No terminal commands yet.</li>
